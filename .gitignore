@@ -1,0 +1,7 @@
+node_modules/
+out/
+# reference paintings are used only for side-by-side comparison and are not part of the code
+ref/
+*.log
+.DS_Store
+Thumbs.db

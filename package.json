@@ -1,0 +1,17 @@
+{
+  "name": "shanshui",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ten Chinese ink-wash landscapes painted and animated entirely in code (WebGL2 + Canvas2D), rendered to a 60s film.",
+  "scripts": {
+    "serve": "node tools/serve.mjs",
+    "still": "node tools/still.mjs",
+    "render": "node tools/render.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "puppeteer-core": "^24.43.1",
+    "ws": "^8.22.0"
+  }
+}

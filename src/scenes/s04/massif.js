@@ -1,11 +1,11 @@
 // s04 helper: Huangshan granite massifs painted like ref 04.
-// A massif is a silhouette given by its top contour (summits, left to right); its sides drop to
-// the mist line. Inside: lit spindle faces (pale, with a crisp dark contour on the shadow side and
-// a few fissures), mottled shadow masses built from translucent vertical strokes and clustered moss
-// dabs (darkest under the crown and in the crevices), ridge conifers along the top, and a billowy
-// dissolve into mist at the base. Painted in colour (paper occluder + diluted ink), finish the bake
+// A massif is a silhouette given by its top contour (summits, left to right) with spire tips; its sides
+// drop to the mist line. Inside: lit spindle faces (pale, broken dark contour on the shadow side), a
+// blurred wash of vertical blots, a crisp dry-brush texture (thresholded streak noise whose coverage
+// follows the shade field), art-directed value / foliage-blotch zones, soft Huangshan pines clustered
+// on the summits (paintSoftPine), and a billowy dissolve into mist at the base. Dabs are batched in
+// alpha buckets (one fill per bucket) to keep the bake fast. Painted in colour (paper occluder + diluted ink), finish the bake
 // with peaks.wetInk.
-import { paintConifer } from '../../lib/pine.js';
 import { smoothPath, PAPER } from '../../lib/brush.js';
 
 const INKC = [14, 12, 9];
@@ -17,6 +17,16 @@ const css = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
 
 function dab(g, x, y, r, a, rng, squash = 0.8, rot = null, irr = 0.35) {
   if (a <= 0.004 || r <= 0.1) return;
+  if (g.bk) { let i = 0; const B = g.bk; while (i < B.length - 1 && a > (B[i].a + B[i + 1].a) / 2) i++; dabShape(B[i].p, x, y, r, rng, squash, rot, irr); return; }
+  g.globalAlpha = Math.min(1, a);
+  g.beginPath();
+  dabShape(g, x, y, r, rng, squash, rot, irr);
+  g.fill();
+}
+// alpha-bucketed batch of dabs: one fill per bucket instead of one per dab (much faster rasterising)
+function buckets(levels) { return { bk: levels.map((a) => ({ a, p: new Path2D() })) }; }
+function flush(g, B) { for (const b of B.bk) { g.globalAlpha = b.a; g.fill(b.p); } }
+function dabShape(g, x, y, r, rng, squash, rot, irr) {
   const n = 7 + ((rng() * 3) | 0);
   const ph = rng() * 6.283, ro = rot ?? rng() * Math.PI;
   const cr = Math.cos(ro), sr = Math.sin(ro);
@@ -27,11 +37,9 @@ function dab(g, x, y, r, a, rng, squash = 0.8, rot = null, irr = 0.35) {
     const ex = Math.cos(t) * rr, ey = Math.sin(t) * rr * squash;
     px.push(x + ex * cr - ey * sr); py.push(y + ex * sr + ey * cr);
   }
-  g.globalAlpha = Math.min(1, a);
-  g.beginPath();
   g.moveTo((px[n - 1] + px[0]) / 2, (py[n - 1] + py[0]) / 2);
   for (let i = 0; i < n; i++) { const j = (i + 1) % n; g.quadraticCurveTo(px[i], py[i], (px[i] + px[j]) / 2, (py[i] + py[j]) / 2); }
-  g.fill();
+  g.closePath();
 }
 
 // tapered filled stroke along pts
@@ -66,6 +74,62 @@ function ribbon(g, pts, width, a, rng, rough = 0.4, prof = 'brush') {
 }
 
 /**
+ * paintSoftPine(g, w, x, y, h, o, rng) - Huangshan pine as in ref 04: thin crooked trunk and 2-5
+ * flat tiered pads (dark bristly domes with flat bottoms). Soft pad bodies go to the wet layer `w`
+ * (blurred later), crisp needle tufts and bristle ticks to `g`. Both contexts must have fillStyle set.
+ *   width (1), lean (ratio), tiers (auto), wetA (1), ink css colour (for ticks)
+ */
+export function paintSoftPine(g, w, x, y, h, o, rng) {
+  const wm = o.width ?? 1;
+  const lean = o.lean ?? (rng() - 0.5) * 0.3;
+  const n = o.tiers ?? (h < 28 ? 3 + ((rng() * 1.6) | 0) : 4 + ((rng() * 2.6) | 0));
+  const topX = x + lean * h, topY = y - h;
+  const bend = (rng() - 0.5) * h * 0.14;
+  const ns = clamp(h / 55, 0.45, 1.5);
+  const trunkX = (u) => (u < 0.45 ? mix(x, x + bend, u / 0.45) : mix(x + bend, topX, (u - 0.45) / 0.55));
+  ribbon(g, [[x, y], [x + bend, y - h * 0.45], [topX, topY + h * 0.12]], Math.max(0.9, h * 0.055 * wm), 0.9, rng, 0.3, 'taper');
+  let side = rng() < 0.5 ? -1 : 1;
+  g.strokeStyle = o.ink;
+  for (let i = 0; i < n; i++) {
+    const f = n === 1 ? 1 : i / (n - 1);
+    const ty = y - h * (0.34 + 0.6 * f) + (rng() - 0.5) * h * 0.04;
+    const tx = trunkX((y - ty) / h);
+    const half = h * wm * (0.3 * Math.pow(1 - f, 0.9) + 0.07) * (0.75 + 0.5 * rng());
+    side = rng() < 0.7 ? -side : side;
+    const off = side * half * (0.08 + 0.35 * rng());
+    const th = h * (0.1 + 0.05 * rng());
+    const cx = tx + off;
+    if (Math.abs(off) > half * 0.2) ribbon(g, [[tx, ty + th * 0.35], [mix(tx, cx, 0.6), ty + th * 0.15], [cx, ty + th * 0.05]], Math.max(0.7, h * 0.026), 0.85, rng, 0.3, 'taper');
+    // soft body
+    dab(w, cx, ty - th * 0.3, half * 0.9, 0.6 * (o.wetA ?? 1), rng, clamp(th / half, 0.2, 0.5), (rng() - 0.5) * 0.15, 0.25);
+    // needle tufts, dense at the top edge, flat bottom
+    const m = Math.max(10, Math.round((half * th) / (1.25 * ns * ns)));
+    const TB = buckets([0.4, 0.65, 0.92]);
+    for (let j = 0; j < m; j++) {
+      const a = rng() * 2 - 1;
+      const v = Math.pow(rng(), 0.55);
+      const dome = 0.25 + 0.95 * Math.pow(Math.max(0, 1 - a * a), 0.5);
+      dab(TB, cx + a * half * 0.95, ty + th * 0.2 - v * th * dome, (1.2 + rng() * 1.8) * ns * (0.7 + 0.5 * v), 0.3 + 0.7 * Math.pow(v, 1.3), rng, 0.45, Math.PI / 2 + a * 0.6 + (rng() - 0.5) * 0.6, 0.4);
+    }
+    flush(g, TB);
+    // bristle ticks along the dome
+    g.globalAlpha = 0.75;
+    g.lineWidth = 0.75 * ns;
+    g.beginPath();
+    const mt = Math.round(half / (1.4 * ns));
+    for (let j = 0; j < mt; j++) {
+      const a = rng() * 2 - 1;
+      const ex = cx + a * half, ey = ty + th * 0.2 - th * (0.25 + 0.95 * Math.pow(Math.max(0, 1 - a * a), 0.5));
+      const ang = -Math.PI / 2 + a * 1.2 + (rng() - 0.5) * 0.6;
+      const len = (1.5 + rng() * 3) * ns;
+      g.moveTo(ex - Math.cos(ang) * len * 0.4, ey - Math.sin(ang) * len * 0.4);
+      g.lineTo(ex + Math.cos(ang) * len, ey + Math.sin(ang) * len);
+    }
+    g.stroke();
+  }
+}
+
+/**
  * paintMassif(ctx, api, o)
  *   top      [[x,y],...] top contour control points, left to right (first/last = shoulders)
  *   base     y where the massif has fully dissolved into mist
@@ -97,11 +161,12 @@ export function paintMassif(ctx, api, o) {
     while (tx < rx1) {
       const w = (16 + rng() * 26) * sc * (o.tipW ?? 1);
       const edge = sstep(0, 40 * sc, Math.min(tx - rx0, rx1 - tx));
-      tips.push({ x: tx + w * 0.5, hw: w * (0.55 + rng() * 0.25), h: (5 + Math.pow(rng(), 1.5) * 22) * sc * tipK * (0.35 + 0.65 * edge) });
+      tips.push({ x: tx + w * 0.5, hw: w * (0.55 + rng() * 0.25), h: (5 + Math.pow(rng(), 1.4) * 21) * sc * tipK * (0.35 + 0.65 * edge), sk: (rng() - 0.5) * 0.5 });
       tx += w * (0.75 + rng() * 0.35);
     }
   }
-  const tipAt = (x) => { let m = 0; for (const t of tips) { const q = Math.abs(x - t.x) / t.hw; if (q < 1) m = Math.max(m, t.h * Math.pow(1 - q * q, 0.9) * (1 - 0.35 * q)); } return m; };
+  // spire tips: pointed (cone-like) with a slightly rounded summit and a skewed side
+  const tipAt = (x) => { let m = 0; for (const t of tips) { const d = (x - t.x) / t.hw; const q = Math.abs(d) * (1 + t.sk * Math.sign(d)); if (q < 1) m = Math.max(m, t.h * Math.pow(1 - q * q, 0.8) * Math.pow(1 - q, 0.4)); } return m; };
   const cont = [];
   for (let i = 0; i < raw.length; i++) {
     const [x, y] = raw[i];
@@ -157,7 +222,7 @@ export function paintMassif(ctx, api, o) {
   const F = faces.map((f) => ({ lean: 0, ...f }));
   const faceGeom = (f, y) => {
     const v = (y - f.y) / f.len;
-    const hw = f.w * 0.5 * Math.pow(clamp(v * 1.7), 0.8) * (1 + 0.12 * clamp(v));
+    const hw = f.w * 0.5 * Math.pow(clamp(v * (f.blunt ?? 1.7)), f.blunt ? 0.45 : 0.8) * (1 + 0.12 * clamp(v));
     return { v, hw, cx: f.x + f.lean * (y - f.y) };
   };
   // ---- shading field: 0 lit .. 1 dark
@@ -167,8 +232,13 @@ export function paintMassif(ctx, api, o) {
     const xw = x + nz.n2(x / 80, y / 90 + 2) * 12 * sc;
     const band = nz.n2(xw / (46 * sc), 0.37 + y / (900 * sc));
     const crev = 1 - Math.abs(nz.n2(xw / (24 * sc), 5.1 + y / (700 * sc)));
-    let s = 0.52 + 0.22 * band + 0.18 * nz.fbm2(x / (55 * sc), y / (120 * sc), 2) + 0.4 * sstep(0.8, 0.97, crev) + (o.dark ?? 0) + (o.darkX ? o.darkX[2] * sstep(o.darkX[0], o.darkX[1], x) : 0);
+    let s = 0.52 + 0.22 * band * (o.band ?? 1) + 0.18 * nz.fbm2(x / (55 * sc), y / (120 * sc), 2) + 0.4 * sstep(0.8, 0.97, crev) + (o.dark ?? 0) + (o.darkX ? o.darkX[2] * sstep(o.darkX[0], o.darkX[1], x) : 0);
     s += 0.45 * Math.exp(-dy / (42 * sc)) - 0.12 * clamp(dy / H);   // dark under the crown, lighter low down
+    for (const z of o.zones || []) {   // art-directed value zones [x, y, rx, ry, amount], ragged edges
+      const zx = (x - z[0]) / z[2], zy = (y - z[1]) / z[3];
+      const d = zx * zx + zy * zy;
+      if (d < 4) s += z[4] * sstep(1.15, 0.55, Math.sqrt(d) + 0.35 * nz.fbm2(x / (26 * sc) + 3, y / (34 * sc), 2));
+    }
     for (const f of F) {
       if (y < f.y - 2) continue;
       const { v, hw, cx } = faceGeom(f, y);
@@ -176,9 +246,9 @@ export function paintMassif(ctx, api, o) {
       const d = (x - cx) / hw;
       const fadeOut = sstep(1.25, 0.8, v);
       if (d > -1 && d < 1) {
-        const lit = 0.1 + 0.4 * Math.pow((d + 1) / 2, 1.6) + 0.12 * nz.n2(x / 14, y / 40);
+        const lit = (o.faceLit ?? 0.1) + 0.4 * Math.pow((d + 1) / 2, 1.6) + (0.12 + (o.faceLit ?? 0) * 0.5) * nz.n2(x / 14, y / 40);
         s = mix(s, lit, fadeOut);
-      } else if (d <= -1 && d > -1.9) s = mix(s, Math.max(s, 0.92), fadeOut * (1 - (-1 - d) / 0.9));
+      } else if (d <= -1 && d > -1.7) s = mix(s, Math.max(s, o.faceShadow ?? 0.8), fadeOut * (1 - (-1 - d) / 0.7));
     }
     return clamp(s);
   };
@@ -186,7 +256,7 @@ export function paintMassif(ctx, api, o) {
   const k = ctx.getTransform().a || 1;
   const bx = Math.floor(Math.min(x0 - spL, ...poly.map((p) => p[0])) - 60 * sc);
   const bx1 = Math.ceil(Math.max(x1 + spR, ...poly.map((p) => p[0])) + 60 * sc);
-  const by = Math.floor(ymin - 90 * sc), by1 = Math.ceil(base + 10);
+  const by = Math.floor(ymin - 125 * sc), by1 = Math.ceil(base + 10);
   const bw = bx1 - bx, bh = by1 - by;
   const cv = new OffscreenCanvas(Math.max(1, Math.ceil(bw * k)), Math.max(1, Math.ceil(bh * k)));
   const g = cv.getContext('2d');
@@ -216,6 +286,9 @@ export function paintMassif(ctx, api, o) {
   const w = wc.getContext('2d');
   w.setTransform(k, 0, 0, k, -bx * k, -by * k);
   w.fillStyle = inkCss;
+  const WB = buckets([0.06, 0.1, 0.14, 0.18, 0.23, 0.29, 0.36, 0.44, 0.55, 0.7]);
+  const MB = buckets([0.2, 0.32, 0.45, 0.58, 0.7, 0.82, 0.95]);
+  const FB = buckets([0.3, 0.45, 0.6, 0.75, 0.9]);
   const nS = Math.round(area / (45 * sc * sc) * (o.wash ?? 1));
   for (let i = 0; i < nS; i++) {
     const q = sample(); if (!q) continue;
@@ -225,7 +298,7 @@ export function paintMassif(ctx, api, o) {
     const r = (4 + rng() * 9) * sc;
     let lean = (rng() - 0.5) * 0.15;
     for (const f of F) if (Math.abs(x - f.x) < f.w) lean = f.lean + (rng() - 0.5) * 0.08;
-    dab(w, x, y, r, (0.08 + 0.36 * s * s) * (o.washAlpha ?? 1), rng, 0.32 + rng() * 0.2, Math.PI / 2 + lean, 0.4);
+    dab(WB, x, y, r, (0.08 + 0.36 * s * s) * (o.washAlpha ?? 1), rng, 0.32 + rng() * 0.2, Math.PI / 2 + lean, 0.4);
   }
   // shadow crevice beside each face's dark contour
   for (const f of F) {
@@ -234,45 +307,110 @@ export function paintMassif(ctx, api, o) {
       const y = f.y + v * f.len;
       const G = faceGeom(f, y);
       const x = G.cx - G.hw - (2 + rng() * 10) * sc;
-      dab(w, x, y, (3 + rng() * 6) * sc, (0.15 + 0.3 * rng()) * life(x, y) * (1 - v * 0.6), rng, 0.4, Math.PI / 2 + f.lean, 0.45);
+      dab(WB, x, y, (3 + rng() * 6) * sc, (0.15 + 0.3 * rng()) * life(x, y) * (1 - v * 0.6), rng, 0.4, Math.PI / 2 + f.lean, 0.45);
     }
   }
   g.fillStyle = inkCss;
   // moss / foliage dabs in clusters, patchy
-  const nD = Math.round(area / (18 * sc * sc) * (o.moss ?? 1));
+  const nD = Math.round(area / (18 * sc * sc) * (o.moss ?? 1) * 0.4);
   for (let i = 0; i < nD; i++) {
     const q = sample(); if (!q) continue;
     const [x, y] = q;
     const s = shadeAt(x, y) * life(x, y);
     const patch = sstep(-0.3, 0.4, nz.fbm2(x / (17 * sc) + 11, y / (52 * sc), 2));
     if (rng() > Math.pow(s, 2.2) * (0.15 + 0.85 * patch) * 1.4) continue;
-    const r = (1.3 + rng() * 3.2) * sc * (0.7 + 0.5 * s);
+    const r = (1.1 + rng() * 2.6) * sc * (0.7 + 0.5 * s);
     const n = 2 + ((rng() * 4) | 0);
-    const a = (0.2 + rng() * 0.6) * (0.4 + 0.6 * s);
-    const wetD = rng() < 0.5;
+    const a = (0.3 + rng() * 0.6) * (0.4 + 0.6 * s);
+    const wetD = rng() < 0.15;
     for (let j = 0; j < n; j++) {
       const ox = (rng() - 0.5) * r * 1.6, oy = (rng() - 0.5) * r * 3.2;
-      dab(wetD ? w : g, x + ox, y + oy, r * (0.45 + rng() * 0.55) * (wetD ? 1.5 : 1), a * (0.7 + rng() * 0.5), rng, 0.5 + rng() * 0.3, Math.PI / 2 + (rng() - 0.5) * 0.7, 0.45);
+      dab(wetD ? WB : MB, x + ox, y + oy, r * (0.45 + rng() * 0.55) * (wetD ? 1.5 : 1), a * (0.7 + rng() * 0.5), rng, 0.5 + rng() * 0.3, Math.PI / 2 + (rng() - 0.5) * 0.7, 0.45);
     }
   }
   for (let i = 1; i < tips.length; i++) {
     const nx = (tips[i - 1].x + tips[i - 1].hw * 0.6 + tips[i].x - tips[i].hw * 0.6) / 2;
     if (rng() > 0.75 * (o.crevs ?? 1)) continue;
     const ny = topY(nx);
-    const len = (30 + Math.pow(rng(), 1.5) * 200) * sc;
+    const len = (18 + Math.pow(rng(), 2) * 90) * sc;
     const ln = (rng() - 0.5) * 0.12;
     const pts = [];
     for (let j = 0; j <= 8; j++) { const yy = ny + 2 * sc + (len * j) / 8; pts.push([nx + ln * (yy - ny) + nz.n2(nx, yy / 30) * 2.5 * sc, yy]); }
     const lf = life(nx, ny + len * 0.3);
-    ribbon(g, pts, (1.6 + rng() * 2.2) * sc, (0.45 + rng() * 0.35) * lf, rng, 0.8, 'taper');
-    for (let j = 0; j < 10; j++) { const p = pts[(rng() * 6) | 0]; dab(w, p[0] - (2 + rng() * 7) * sc, p[1] + rng() * len * 0.15, (2.5 + rng() * 5) * sc, (0.12 + rng() * 0.25) * lf, rng, 0.4, Math.PI / 2, 0.45); }
+    ribbon(g, pts, (2.2 + rng() * 2.4) * sc, (0.35 + rng() * 0.3) * lf, rng, 0.8, 'taper');
+    for (let j = 0; j < 10; j++) { const p = pts[(rng() * 6) | 0]; dab(WB, p[0] - (2 + rng() * 7) * sc, p[1] + rng() * len * 0.15, (2.5 + rng() * 5) * sc, (0.12 + rng() * 0.25) * lf, rng, 0.4, Math.PI / 2, 0.45); }
   }
+  flush(w, WB);
   g.save();
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.globalAlpha = 1;
   g.filter = `blur(${(1.6 * sc * k).toFixed(2)}px)`;
   g.drawImage(wc, 0, 0);
-  g.restore();  // crisp face contours: dark broken line on the shadow side, faint on the lit side, fissures
+  g.restore();
+  // crisp dry-brush texture: thresholded vertical streak noise whose coverage grows with the shade
+  // field, so shadow sides break into sharp wet-on-dry blotches and lit planes keep a few specks
+  {
+    const cs = 6, gw = Math.ceil(bw / cs) + 2, gh = Math.ceil(bh / cs) + 2;
+    const S = new Float32Array(gw * gh), T = new Float32Array(gw * gh).fill(2), W = new Float32Array(gw * gh);
+    const tex0 = o.tex ?? 1;
+    for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+      const x = bx + i * cs, y = by + j * cs, m = j * gw + i;
+      const sv = inside(x, y) || inside(x, y - cs) ? shadeAt(x, y) * life(x, y) : 0;
+      S[m] = sv;
+      if (sv > 0.04) T[m] = mix(1.05, -0.6, sstep(0.22, 0.95, sv * tex0)) + 0.3 * nz.n2(x / (70 * sc) + 2.2, y / (90 * sc) + 7.1);
+      W[m] = nz.n2(x / 90, y / 120 + 9) * 2.5 * sc;
+    }
+    const ds = o.texDs ?? (sc >= 1.3 ? 1.25 : sc >= 1.1 ? 1.5 : 2);
+    const tw = Math.ceil(bw / ds), th = Math.ceil(bh / ds);
+    const tc = new OffscreenCanvas(tw, th);
+    const tg = tc.getContext('2d');
+    const im = tg.createImageData(tw, th);
+    const D = im.data;
+    const ic = dil(paper, tone);
+    const ts = o.texScale ?? 1;
+    const fx = 1 / (5 * sc * ts), fy = 1 / (26 * sc * ts), gx = 1 / (13 * sc * ts), gy = 1 / (9 * sc * ts);
+    for (let j = 0; j < th; j++) {
+      const y = by + j * ds;
+      const gyf = (y - by) / cs, gj = Math.min(gh - 2, gyf | 0), fy2 = gyf - gj;
+      for (let i = 0; i < tw; i++) {
+        const x = bx + i * ds;
+        const gxf = (x - bx) / cs, gi = Math.min(gw - 2, gxf | 0), fx2 = gxf - gi;
+        const o0 = gj * gw + gi;
+        const s = mix(mix(S[o0], S[o0 + 1], fx2), mix(S[o0 + gw], S[o0 + gw + 1], fx2), fy2);
+        if (s < 0.06) continue;
+        const t0 = mix(mix(T[o0], T[o0 + 1], fx2), mix(T[o0 + gw], T[o0 + gw + 1], fx2), fy2);
+        if (t0 > 0.95) continue;
+        const xw = x + mix(mix(W[o0], W[o0 + 1], fx2), mix(W[o0 + gw], W[o0 + gw + 1], fx2), fy2);
+        const q = 0.62 * nz.n2(xw * fx + 31.7, y * fy) + 0.38 * nz.n2(xw * gx + 5.1, y * gy + 3.3);
+        const a = sstep(t0 - 0.1, t0 + 0.1, q) * (0.2 + 0.75 * s);
+        if (a < 0.01) continue;
+        const p = (j * tw + i) * 4;
+        D[p] = ic[0]; D[p + 1] = ic[1]; D[p + 2] = ic[2]; D[p + 3] = (a * 255) | 0;
+      }
+    }
+    tg.putImageData(im, 0, 0);
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = o.texAlpha ?? 0.85;
+    g.imageSmoothingEnabled = true;
+    g.drawImage(tc, 0, 0, tw, th, 0, 0, tw * ds * k, th * ds * k);
+    g.restore();
+  }
+  // foliage zones (z[5] = density): clusters of crisp leaf blotches with paper gaps
+  for (const z of o.zones || []) {
+    if (!(z[5] > 0)) continue;
+    const nb = Math.round(z[2] * z[3] / (14 * sc * sc) * z[5]);
+    for (let i = 0; i < nb; i++) {
+      const ang = rng() * 6.2832, rr = Math.sqrt(rng()) * 1.1;
+      const x = z[0] + Math.cos(ang) * rr * z[2], y = z[1] + Math.sin(ang) * rr * z[3];
+      const p = sstep(-0.3, 0.25, nz.fbm2(x / (22 * sc) + 17, y / (22 * sc), 2)) * sstep(1.0, 0.5, rr);
+      if (rng() > p) continue;
+      const r = (2 + Math.pow(rng(), 1.5) * 6) * sc;
+      const nn = 2 + ((rng() * 3) | 0);
+      for (let j = 0; j < nn; j++) dab(MB, x + (rng() - 0.5) * r * 2.2, y + (rng() - 0.5) * r * 1.6, r * (0.5 + rng() * 0.6), 0.55 + rng() * 0.4, rng, 0.35 + rng() * 0.3, rng() * 3.14, 0.6);
+    }
+  }
+  // crisp face contours: broken dark strokes on the shadow side of the upper face, short fissures
   for (const f of F) {
     const N = 26;
     const edge = (u, v0, v1) => {
@@ -287,19 +425,17 @@ export function paintMassif(ctx, api, o) {
     };
     // shadow contour in 2-3 segments
     let v = 0;
-    while (v < 0.95) {
-      const len = 0.1 + rng() * 0.25;
-      const v1 = Math.min(1.05, v + len);
+    const vEnd = Math.min(0.6, 160 * sc / f.len);
+    while (v < vEnd) {
+      const len = Math.min(0.06 + rng() * 0.14, 70 * sc / f.len);
+      const v1 = Math.min(vEnd, v + len);
       const pts = edge(-1, v, v1).filter((p) => p[1] < fadeY + (base - fadeY) * 0.5);
-      if (pts.length > 3) ribbon(g, pts, (2.4 + rng() * 2.6) * sc * (1.35 - v * 0.9), (0.85 - v * 0.35) * (o.contour ?? 1), rng, 0.7);
-      v = v1 + 0.03 + rng() * 0.15;
+      if (pts.length > 3) ribbon(g, pts, (3 + rng() * 3) * sc * (1.3 - v), (0.8 - v * 0.5) * (o.contour ?? 1), rng, 0.9);
+      v = v1 + 0.04 + rng() * 0.12;
     }
-    const pr = edge(1, 0.05, 0.7 + rng() * 0.3);
-    ribbon(g, pr, 1.1 * sc, 0.25 * (o.contour ?? 1), rng, 0.6);
-    const nf = 1 + ((rng() * 3) | 0);
-    for (let i = 0; i < nf; i++) {
-      const u = -0.5 + rng() * 1.2, v0 = 0.1 + rng() * 0.4;
-      ribbon(g, edge(u, v0, v0 + 0.15 + rng() * 0.35), (0.7 + rng() * 0.9) * sc, 0.28 + rng() * 0.2, rng, 0.7);
+    if (rng() < 0.6) {
+      const u = -0.5 + rng() * 1.2, v0 = 0.08 + rng() * 0.3;
+      ribbon(g, edge(u, v0, v0 + Math.min(0.08 + rng() * 0.12, 50 * sc / f.len)), (1 + rng() * 1.2) * sc, 0.3 + rng() * 0.2, rng, 0.7);
     }
   }
   // dark crown band: dense foliage clumps hugging the top contour
@@ -309,8 +445,10 @@ export function paintMassif(ctx, api, o) {
     const ty = topY(x);
     const dpt = Math.pow(rng(), 1.6) * 34 * sc;
     const r = (2.5 + rng() * 5) * sc;
-    dab(g, x, ty + dpt + r * 0.3, r, 0.35 + rng() * 0.5, rng, 0.6, (rng() - 0.5) * 0.4, 0.5);
+    dab(MB, x, ty + dpt + r * 0.3, r, 0.35 + rng() * 0.5, rng, 0.6, (rng() - 0.5) * 0.4, 0.5);
   }
+  g.fillStyle = inkCss;
+  flush(g, MB);
   g.restore();
   // foliage masses along polylines: dense dark clumps hanging from ridges and ledges
   g.fillStyle = inkCss;
@@ -323,45 +461,64 @@ export function paintMassif(ctx, api, o) {
       for (let j = 0; j < n; j++) {
         const dy = Math.pow(rng(), 1.8) * hang - fr * 0.3;
         const r = fr * (0.35 + rng() * 0.75) * (1 - 0.4 * dy / Math.max(1, hang));
-        dab(g, fp[i][0] + (rng() - 0.5) * fr * 2.2, fp[i][1] + dy, r, (0.45 + rng() * 0.5) * (fo.alpha ?? 1), rng, 0.55 + rng() * 0.3, (rng() - 0.5) * 0.8, 0.5);
-      }
-    }
-    if (fo.trees) {
-      const [th0, th1] = fo.treeH || [24 * sc, 56 * sc];
-      for (let d = rng() * 20; d < fp.length; d += Math.max(2, Math.round((th1 * 0.35) / fo.trees / 3 * (0.5 + rng())))) {
-        const p = fp[Math.min(fp.length - 1, d | 0)];
-        const h = mix(th0, th1, rng());
-        const u = rng();
-        paintConifer(g, p[0] + (rng() - 0.5) * 8, p[1] + h * 0.2, h, { kind: u < 0.7 ? 'pine' : 'fir', tone: clamp(treeTone + (rng() - 0.5) * 0.06), lean: fo.lean ?? (rng() - 0.5) * 16, width: 0.9 + rng() * 0.4, paper, rng: api.rng('ftree:' + seed + ':' + d) });
+        dab(FB, fp[i][0] + (rng() - 0.5) * fr * 2.2, fp[i][1] + dy, r, (0.45 + rng() * 0.5) * (fo.alpha ?? 1), rng, 0.55 + rng() * 0.3, (rng() - 0.5) * 0.8, 0.5);
       }
     }
   }
   g.fillStyle = inkCss;
-  // ridge conifers along the top contour and the upper shoulders
+  flush(g, FB);
+  // trees: few, larger, soft Huangshan pines clustered on summits (wet bodies blurred, crisp needles)
+  const trees = [];
+  for (const fo of o.foliage || []) {
+    if (!fo.trees) continue;
+    const fp = smoothPath(fo.pts, 3);
+    const [th0, th1] = fo.treeH || [24 * sc, 56 * sc];
+    for (let d = rng() * 20; d < fp.length; d += Math.max(3, Math.round((th1 * 0.6) / fo.trees / 3 * (0.5 + rng())))) {
+      const p = fp[Math.min(fp.length - 1, d | 0)];
+      const h = mix(th0, th1, Math.pow(rng(), 0.8));
+      trees.push({ x: p[0] + (rng() - 0.5) * 8, y: p[1] + h * 0.25, h, lean: fo.lean, wide: fo.wide });
+    }
+  }
   const [h0, h1] = o.treeH || [22 * sc, 52 * sc];
   const tk = o.trees ?? 1;
   if (tk > 0) {
-    const trees = [];
-    let x = x0 + rng() * 10;
+    const cx = (x) => clamp(x, x0, x1);
+    let x = x0 + rng() * 20;
     while (x < x1) {
-      const clumpN = nz.n2(x / 90, 13.3) + 0.6 * tipAt(x) / (14 * sc) - 0.3;
-      if (clumpN > -0.35 || rng() < 0.12) {
-        const h = mix(h0, h1, Math.pow(rng(), 0.9)) * (0.85 + 0.3 * (clumpN + 1) / 2);
-        trees.push({ x: x + (rng() - 0.5) * 6, y: topY(x) + h * mix(0.12, 0.35, rng()), h, back: rng() < 0.35 });
+      const ty = topY(x);
+      const nb = Math.max(topY(cx(x - 35 * sc)), topY(cx(x + 35 * sc)));
+      const summit = clamp((nb - ty) / (16 * sc));
+      const clump = sstep(-0.85, 0.05, nz.n2(x / 75, 13.3));
+      let step = h1 * (0.35 + 0.4 * rng());
+      if (rng() < (0.75 + 0.25 * summit) * clump * Math.min(1, tk)) {
+        const h = mix(h0, h1, Math.pow(rng(), 0.75)) * (0.8 + 0.35 * summit);
+        trees.push({ x: x + (rng() - 0.5) * 8, y: ty + h * mix(0.1, 0.3, rng()), h });
+        if (rng() < 0.8 * tk) trees.push({ x: x + (rng() - 0.5) * h * 0.9, y: ty + h * mix(0.45, 0.9, rng()), h: h * mix(0.55, 0.8, rng()) });
+        step = h * (0.28 + 0.35 * rng());
       }
-      x += (h1 * 0.26) / tk * (0.5 + rng());
+      x += step / Math.sqrt(Math.max(0.3, tk));
     }
     for (const L of o.ledges || []) {
-      for (let i = 0; i < (L[2] ?? 3); i++) { const h = mix(h0, h1, rng()) * 0.8; trees.push({ x: L[0] + (rng() - 0.5) * h * 1.2, y: L[1] + rng() * h * 0.3, h, back: false }); }
+      for (let i = 0; i < (L[2] ?? 3); i++) { const h = mix(h0, h1, rng()) * 0.8; trees.push({ x: L[0] + (rng() - 0.5) * h * 1.2, y: L[1] + rng() * h * 0.3, h }); }
     }
-    trees.sort((a, b) => (b.back - a.back) || (a.y - b.y));
+  }
+  if (trees.length) {
+    trees.sort((a, b) => a.y - b.y);
+    const tcv = new OffscreenCanvas(cv.width, cv.height);
+    const tw = tcv.getContext('2d');
+    tw.setTransform(k, 0, 0, k, -bx * k, -by * k);
+    const tc = dil(paper, treeTone);
+    tw.fillStyle = css(tc);
+    g.fillStyle = css(tc);
     for (const t of trees) {
-      const u = rng();
-      paintConifer(g, t.x, t.y, t.h, {
-        kind: u < 0.6 ? 'fir' : u < 0.82 ? 'spruce' : 'pine', tone: clamp(treeTone + (t.back ? 0.12 : 0) + (rng() - 0.5) * 0.06),
-        lean: (rng() - 0.5) * 10, width: 0.85 + rng() * 0.35, paper, rng: api.rng('tree:' + seed + ':' + t.x.toFixed(1)),
-      });
+      paintSoftPine(g, tw, t.x, t.y, t.h, { ink: css(tc), lean: t.lean, width: (1 + rng() * 0.45) * (t.wide ?? 1), tiers: t.wide ? 3 : undefined, wetA: o.treeWet ?? 1 }, api.rng('sp:' + seed + ':' + t.x.toFixed(1)));
     }
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalAlpha = 1;
+    g.filter = `blur(${(1.4 * sc * k).toFixed(2)}px)`;
+    g.drawImage(tcv, 0, 0);
+    g.restore();
   }
   // ---- mist dissolve mask
   const ds = 3;

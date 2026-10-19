@@ -101,7 +101,7 @@ export function paintRock(ctx, R, k = 1, paper = PAPER) {
       const a = Math.max(L - 2, bnd[i]), b = Math.min(Rr + 2, bnd[i + 1]);
       if (b <= a) continue;
       const gx = fg.createLinearGradient(lightL ? a : b, 0, lightL ? b : a, 0);
-      const fv = face + (nz.n2(i * 3.1 + seed, y * 0.004) * 0.08);
+      const fv = face + (nz.n2(i * 3.1 + seed, y * 0.004) * (R.facetVar ?? 0.08)) - (R.facetVar ? (R.facetVar * 0.6) * (0.5 + 0.5 * Math.sin(i * 2.7 + seed)) : 0);
       gx.addColorStop(0, rgba(tone(fv, paper), 1));
       gx.addColorStop(0.55, rgba(tone(fv - 0.05, paper), 1));
       gx.addColorStop(0.85, rgba(tone(mix(fv, shade, 0.55), paper), 1));
@@ -123,6 +123,34 @@ export function paintRock(ctx, R, k = 1, paper = PAPER) {
     blob(g, x, y, 14 + rng() * 40, { color: tone(clamp(face + (rng() < 0.6 ? -0.3 : 0.12)), paper), alpha: 0.12 + rng() * 0.12, rng, squash: 1.6, irregular: 0.4 });
   }
   g.filter = 'none';
+  // 2c. dark wet crown: ink pooled along the top contour, bleeding down the face unevenly,
+  // broken by pale dry-brush flecks (mottled, not flat)
+  if (R.topDark) {
+    const TD = R.topDark;
+    g.save();
+    g.filter = `blur(${3 * k}px)`;
+    for (let x = x0 + M - 6; x <= x1 - M + 6; x += 3) {
+      const t0 = top(x);
+      if (t0 == null) continue;
+      const D = TD * (0.35 + 0.9 * (0.5 + 0.5 * nz.n2(x * 0.018, 13.1)) + 0.25 * nz.n2(x * 0.09, 4.2));
+      const gr = g.createLinearGradient(0, t0 - 4, 0, t0 + D);
+      gr.addColorStop(0, rgba(tone(0.02, paper), 0.95));
+      gr.addColorStop(0.4, rgba(tone(0.05, paper), 0.7));
+      gr.addColorStop(1, rgba(tone(0.12, paper), 0));
+      g.fillStyle = gr;
+      g.fillRect(x - 0.5, t0 - 4, 4, D + 4);
+    }
+    g.filter = 'none';
+    g.restore();
+    for (let i = 0; i < W * TD / 700; i++) {
+      const x = mix(bx0, bx1, rng());
+      const t0 = top(x);
+      if (t0 == null) continue;
+      const y = t0 + 5 + rng() * TD * 0.9;
+      const len = 5 + rng() * 16;
+      dryStroke(g, [[x, y], [x + (rng() - 0.5) * 4, y + len * 0.5], [x + (rng() - 0.5) * 6, y + len]], { width: 3 + rng() * 7, bristles: 3 + ((rng() * 3) | 0), color: tone(0.45 + rng() * 0.35, paper), alpha: 0.18 + rng() * 0.3, dry: 0.55, rng });
+    }
+  }
   // 3. texture: vertical axe-cut strokes, denser toward each facet's shadow side and the top
   const texN = (R.tex ?? 1) * (W * H) / 260;
   const facetU = (x, y) => {
@@ -136,9 +164,9 @@ export function paintRock(ctx, R, k = 1, paper = PAPER) {
     if (t0 == null || y < t0) continue;
     const u = facetU(x, y);
     const depth = clamp((y - t0) / 260, 0, 1);
-    if (rng() > 0.25 + 0.75 * u * (1 - 0.5 * depth)) continue;
+    if (rng() > (R.texLit ?? 0.25) + 0.75 * u * (1 - 0.5 * depth)) continue;
     const len = 8 + rng() * 40;
-    const v = clamp(Math.min(face - 0.04, mix(0.5, 0.02, u * u)) + (rng() - 0.5) * 0.3, 0.0, 0.75);
+    const v = clamp(Math.min(face - 0.04, mix(R.texLight ?? 0.5, 0.02, u * u)) + (rng() - 0.5) * 0.3, 0.0, 0.75);
     const sl = slant + (rng() - 0.5) * 0.2;
     const tp = [[x, y], [x + sl * len * 0.5 + (rng() - 0.5) * 3, y + len * 0.5], [x + sl * len + (rng() - 0.5) * 3, y + len]];
     if (rng() < 0.65) dryStroke(g, tp, { width: 3 + rng() * 7, bristles: 3 + ((rng() * 4) | 0), color: tone(v, paper), alpha: 0.4 + rng() * 0.45, dry: 0.3 + rng() * 0.35, rng });
@@ -155,6 +183,30 @@ export function paintRock(ctx, R, k = 1, paper = PAPER) {
     const len = 8 + rng() * 34;
     const sl = slant + (rng() - 0.5) * 0.25;
     dryStroke(g, [[x, y], [x + sl * len * 0.5, y + len * 0.5], [x + sl * len, y + len]], { width: 4 + rng() * 9, bristles: 4 + ((rng() * 4) | 0), color: tone(rng() * 0.2, paper), alpha: 0.55 + rng() * 0.4, dry: 0.25 + rng() * 0.3, rng });
+  }
+  // 3c. splashed-ink mottling: clusters of dark irregular blots (where a noise field is high) with
+  // pale dry flecks between, so the face reads as wet ink pooled unevenly, not an airbrushed ramp
+  if (R.mottle) {
+    const mN = R.mottle * (W * H) / 900;
+    g.save();
+    g.filter = `blur(${1.2 * k}px)`;
+    for (let i = 0; i < mN; i++) {
+      const x = mix(x0, x1, rng()), y = mix(y0, y1, rng());
+      const t0 = top(x);
+      if (t0 == null || y < t0 + 2) continue;
+      const cl = nz.n2(x * 0.03 + seed, y * 0.035) + 0.35 * nz.n2(x * 0.11, y * 0.09 + 3.3);
+      if (cl < -0.1 + rng() * 0.3) continue;
+      blob(g, x, y, 3 + Math.pow(rng(), 1.8) * 13, { color: tone(rng() * 0.14, paper), alpha: 0.45 + rng() * 0.45, rng, irregular: 0.6, squash: 0.55 + rng() * 0.5, rot: rng() * 3 });
+    }
+    g.filter = 'none';
+    g.restore();
+    for (let i = 0; i < mN * 0.35; i++) {
+      const x = mix(x0, x1, rng()), y = mix(y0, y1, rng());
+      const t0 = top(x);
+      if (t0 == null || y < t0 + 4) continue;
+      const len = 4 + rng() * 14;
+      dryStroke(g, [[x, y], [x + (rng() - 0.5) * 3, y + len * 0.5], [x + (rng() - 0.5) * 5, y + len]], { width: 2 + rng() * 6, bristles: 3, color: tone(0.55 + rng() * 0.3, paper), alpha: 0.2 + rng() * 0.3, dry: 0.6, rng });
+    }
   }
   // 4. crevices: dark tapering strokes down each boundary
   for (const c of crev) {
@@ -233,30 +285,37 @@ export function paintRock(ctx, R, k = 1, paper = PAPER) {
   for (const m of R.marks || []) paintMoss(g, m[0], m[1], m[2], rng, { color: tone(m[3] ?? 0.03, paper), greys: 0.5 });
 
   // 8. mist dissolve: erase downward from the fade line with a ragged, blurred edge
-  g.save();
-  g.globalCompositeOperation = 'destination-out';
-  g.filter = `blur(${7 * k}px)`;
+  // (the erase mask is drawn whole on its own canvas, then blurred once: blurring each column
+  // separately left ~25% of the rock as a grey veil below the fade, ending in a hard line)
+  const ecv = new OffscreenCanvas(cv.width, cv.height);
+  const eg = ecv.getContext('2d');
+  eg.setTransform(k, 0, 0, k, -x0 * k, -y0 * k);
   const sw = 10;
   for (let x = x0; x < x1; x += sw) {
     const [f0, f1] = fadeAt(fade, x + sw / 2);
     const fj = R.fadeJitter ?? 1;
     const j = (nz.n2(x * 0.01, 1.7) * (f1 - f0) * 0.45 + nz.n2(x * 0.04, 2.9) * (f1 - f0) * 0.15) * fj;
     const a = f0 + j, b = Math.max(a + 8, f1 + j);
-    const gr = g.createLinearGradient(0, a, 0, b);
+    const gr = eg.createLinearGradient(0, a, 0, b);
     gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, 'rgba(0,0,0,0.55)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
-    g.fillStyle = gr;
-    g.fillRect(x - 1, a, sw + 2, b - a);
-    g.fillStyle = 'rgba(0,0,0,1)';
-    g.fillRect(x - 1, b - 1, sw + 2, y1 - b + 40);
+    eg.fillStyle = gr;
+    eg.fillRect(x, a, sw, b - a);
+    eg.fillStyle = 'rgba(0,0,0,1)';
+    eg.fillRect(x - 0.5, b - 0.5, sw + 1, y1 - b + 40);
   }
   // wisps eating into the face above the fade line
   for (let i = 0; i < (R.wisps ?? 1) * W / 30; i++) {
     const x = mix(x0, x1, rng());
     const [f0, f1] = fadeAt(fade, x);
     const y = f0 - rng() * (f1 - f0) * 0.6;
-    g.fillStyle = `rgba(0,0,0,${0.25 + rng() * 0.35})`;
-    g.beginPath(); g.ellipse(x, y, 18 + rng() * 50, 6 + rng() * 12, 0, 0, Math.PI * 2); g.fill();
+    eg.fillStyle = `rgba(0,0,0,${0.25 + rng() * 0.35})`;
+    eg.beginPath(); eg.ellipse(x, y, 18 + rng() * 50, 6 + rng() * 12, 0, 0, Math.PI * 2); eg.fill();
   }
+  g.save();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.globalCompositeOperation = 'destination-out';
+  g.filter = `blur(${7 * k}px)`;
+  g.drawImage(ecv, 0, 0);
   g.restore();
 
   ctx.drawImage(cv, x0, y0, W, H);

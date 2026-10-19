@@ -14,6 +14,7 @@ import { makeCraneFlock } from '../lib/fauna.js';
 import { paintIsland, bakeInked } from './s01/islands.js';
 import { inkify } from '../lib/inkfx.js';
 import { paintFoliageBand } from './s01/foliage.js';
+import { paintCliffFace } from './s01/cliffface.js';
 
 const PAPER = [239, 231, 220];
 const T0 = 3;              // time at which the camera is at rest (reference composition)
@@ -41,7 +42,7 @@ export default {
 
     // ---------------------------------------------------------------- far ranges (right, top)
     // ---------------------------------------------------------------- far ranges (right, top)
-    const far = makeMountains(api, { rect: [960, 170, 1200, 400], fade: [0.3, 1.0], trees: 0.5, treeH: 11, body: 0.8, peaks: [
+    const far = makeMountains(api, { rect: [960, 170, 1200, 400], fade: [0.2, 0.8], trees: 0.5, treeH: 11, body: 0.8, ink: { edge: 0.12 }, peaks: [
       { x: 1230, top: 410, wl: 300, wr: 160, base: 560, tone: 0.24, seed: 1 },
       { x: 1390, top: 345, wl: 170, wr: 140, base: 550, tone: 0.3, seed: 2 },
       { x: 1581, top: 305, wl: 170, wr: 160, base: 540, tone: 0.34, seed: 3 },
@@ -51,17 +52,17 @@ export default {
     layers.push(makeMist(api, { top: 430, bottom: 640, z: 7.5, lobe: 70, seed: 1, drift: 6, density: 0.45, holes: 0.4, softness: 16, shade: 0.08 }));
 
     // distant pale hills behind the falls and in the centre
-    const hills = makeMountains(api, { rect: [360, 400, 1060, 300], fade: [0.25, 1.0], trees: 1.4, treeH: 11, peaks: [
+    const hills = makeMountains(api, { rect: [360, 400, 1060, 300], fade: [0.15, 0.75], trees: 1.2, treeH: 11, ink: { edge: 0.15 }, peaks: [
       { x: 1220, top: 455, wl: 220, wr: 170, base: 650, tone: 0.36, seed: 11 },
       { x: 1080, top: 500, wl: 190, wr: 130, base: 660, tone: 0.32, seed: 12 },
-      { x: 560, top: 505, wl: 150, wr: 130, base: 660, tone: 0.32, seed: 13, rough: 0.7, moss: 1.5 },
+      { x: 560, top: 520, wl: 170, wr: 150, base: 660, tone: 0.28, seed: 13, rough: 0.7, moss: 1.5, knobs: 1 },
       { x: 690, top: 482, wl: 150, wr: 140, base: 660, tone: 0.34, seed: 14, rough: 0.7, moss: 1.5 },
-      { x: 820, top: 515, wl: 140, wr: 130, base: 670, tone: 0.32, seed: 15, rough: 0.7, moss: 1.5 },
-      { x: 940, top: 548, wl: 130, wr: 140, base: 680, tone: 0.3, seed: 16, rough: 0.7, moss: 1.5 },
+      { x: 820, top: 538, wl: 170, wr: 150, base: 670, tone: 0.26, seed: 15, rough: 0.7, moss: 1.5, knobs: 1 },
+      { x: 940, top: 562, wl: 120, wr: 160, base: 680, tone: 0.24, seed: 16, rough: 0.7, moss: 1.5, knobs: 0 },
     ] });
     layers.push(hills.layer({ z: 6, name: 'hills' }));
 
-    const midFar = makeMountains(api, { rect: [1380, 300, 800, 400], fade: [0.3, 1.0], trees: 0.7, treeH: 14, peaks: [
+    const midFar = makeMountains(api, { rect: [1380, 300, 800, 400], fade: [0.2, 0.8], trees: 0.7, treeH: 14, ink: { edge: 0.2 }, peaks: [
       { x: 1600, top: 430, wl: 140, wr: 110, base: 660, tone: 0.45, seed: 21 },
       { x: 1880, top: 420, wl: 150, wr: 200, base: 670, tone: 0.48, seed: 22 },
       { x: 1701, top: 369, wl: 200, wr: 190, base: 670, tone: 0.58, seed: 23 },
@@ -69,10 +70,10 @@ export default {
     layers.push(midFar.layer({ z: 5, name: 'midfar' }));
     layers.push(makeMist(api, { top: 580, bottom: 750, z: 4.6, lobe: 70, seed: 2, drift: 8, density: 0.5, holes: 0.35, softness: 16, shade: 0.08 }));
 
-    const mid = makeMountains(api, { rect: [1100, 400, 1060, 470], fade: [0.5, 1.05], trees: 1.1, treeH: 22, body: 1.5, cun: 1.4, peaks: [
+    const mid = makeMountains(api, { rect: [1100, 400, 1060, 470], fade: [0.32, 0.88], trees: 1.4, treeH: 30, body: 1.5, cun: 1.4, peaks: [
       { x: 1620, top: 525, wl: 120, wr: 170, base: 810, tone: 0.86, seed: 31, moss: 1.5 },
       { x: 1264, top: 598, wl: 70, wr: 75, base: 800, tone: 0.72, seed: 32 },
-      { x: 1487, top: 480, wl: 150, wr: 160, base: 810, tone: 0.95, seed: 33, treeH: 22, moss: 1.6 },
+      { x: 1487, top: 480, wl: 150, wr: 160, base: 810, tone: 0.95, seed: 33, treeH: 30, moss: 1.6 },
       { x: 1412, top: 552, wl: 80, wr: 70, base: 810, tone: 0.84, seed: 34 },
       { x: 1880, top: 648, wl: 130, wr: 170, base: 850, tone: 0.84, seed: 35, trees: 1.3, treeH: 40, moss: 1.6 },
     ] });
@@ -119,6 +120,9 @@ export default {
     layers.push(api.tex(inkify(api, cfRaw, { edge: 0.35, granulation: 0.15, bleed: 0.8 }), { rect: cfRect, z: 1.5, name: 'crag-trees', sway: { amp: 1, freq: 0.22, scale: 160, power: 1.5, anchor: [860, 900], radius: 300 } }));
 
     // ---------------------------------------------------------------- left cliff
+    const upperOutline = [[-180, 520], [-20, 500], [60, 482], [140, 476], [205, 472], [280, 474], [345, 470], [372, 452], [398, 458], [412, 482], [430, 500],
+        [452, 520], [458, 596], [548, 596], [556, 588], [585, 584], [612, 588], [640, 600], [662, 640], [672, 720], [680, 800], [690, 900], [700, 1000], [-180, 1000]];
+    const lowerOutline = [[-180, 650], [0, 632], [60, 658], [120, 690], [180, 716], [240, 728], [300, 766], [340, 812], [360, 878], [420, 888], [480, 926], [540, 958], [600, 990], [660, 1030], [730, 1090], [730, 1200], [-180, 1200]];
     const upper = cliff({
       seed: 11,
       outline: [[-180, 520], [-20, 500], [60, 482], [140, 476], [205, 472], [280, 474], [345, 470], [372, 452], [398, 458], [412, 482], [430, 500],
@@ -132,7 +136,7 @@ export default {
     });
     const lower = cliff({
       seed: 12,
-      outline: [[-180, 650], [0, 632], [60, 658], [120, 690], [180, 716], [240, 728], [300, 766], [340, 812], [360, 878], [420, 888], [480, 926], [540, 958], [600, 990], [660, 1030], [730, 1090], [730, 1200], [-180, 1200]],
+      outline: lowerOutline,
       columns: [{ x: 60 }, { x: 175 }, { x: 350 }, { x: 520 }],
       fade: [[0, 1060, 1180], [300, 1080, 1190], [700, 1080, 1190]],
       tone: 0.3, shadow: 0.45, moss: 1.0, mossSize: 1.2, foliage: 1.0, grain: 70,
@@ -144,27 +148,40 @@ export default {
       speed: 230, z: 1.2, seed: 2.1, sheets: 2, streakScale: 5, thin: 0.35, sideShade: 0.2, spray: { amount: 0.9, rise: 130, width: 160 },
     });
     layers.push(rock.layer({ z: 1.2, name: 'cliff' }));
+    // brushwork overlay on the cliff: column crevices, shaded faces, mottling, moss along the tops
+    const cfaceRect = [-160, 380, 900, 760];
+    const cfaceRaw = api.bakeCanvas(cfaceRect[2], cfaceRect[3], (ctx, { k }) => {
+      ctx.translate(-cfaceRect[0], -cfaceRect[1]);
+      const nz = api.noise(55);
+      paintCliffFace(ctx, api.rng(54), nz, { outline: upperOutline, hole: [455, 596, 97, 420], tone: 0.9, veil: 0.35, fade: [820, 960], paper: PAPER, k, moss: 1.2, caps: 1, skipTop: [[205, 352], [446, 558]],
+        columns: [{ x: 30, len: 170, dark: 0.3 }, { x: 95, len: 250, dark: 0.55 }, { x: 150, len: 300, dark: 0.22 }, { x: 205, len: 220, dark: 0.6, w: 60 }, { x: 292, len: 320, dark: 0.28 }, { x: 352, len: 200, dark: 0.45 },
+          { x: 402, len: 300, dark: 0.65, crack: 5, w: 60 }, { x: 452, len: 340, dark: 0.75, crack: 5, w: 50 }, { x: 600, len: 300, dark: 0.7, crack: 5, w: 50 }, { x: 645, len: 260, dark: 0.45 }] });
+      paintCliffFace(ctx, api.rng(56), nz, { outline: lowerOutline, tone: 0.85, veil: 0.6, fade: [990, 1110], paper: PAPER, k, moss: 1, caps: 0.6,
+        columns: [{ x: 20, len: 260 }, { x: 80, len: 240, dark: 0.5 }, { x: 150, len: 260 }, { x: 220, len: 240, dark: 0.5 }, { x: 290, len: 200 }, { x: 350, len: 180 }, { x: 430, len: 160 }, { x: 520, len: 140 }] });
+    });
+    layers.push(api.tex(inkify(api, cfaceRaw, { edge: 0.3, granulation: 0.15, bleed: 0.8 }), { rect: cfaceRect, z: 1.2, name: 'cliff-face' }));
     layers.push(...falls.layers);
 
     // dense foliage over the lower-left slope and the cliff ledges
-    const folRect = [-160, 520, 900, 700];
-    const folRaw = api.bakeCanvas(folRect[2], folRect[3], (ctx) => {
+    const folRect = [-160, 440, 900, 780];
+    const folRaw = api.bakeCanvas(folRect[2], folRect[3], (ctx, { k }) => {
       ctx.translate(-folRect[0], -folRect[1]);
       const r = api.rng(77), nz = api.noise(78);
       paintFoliageBand(ctx, r, nz, [[-150, 600], [-40, 612], [60, 642], [150, 684], [230, 724], [300, 764], [350, 830], [420, 880], [500, 922], [570, 962], [650, 1010], [720, 1080]],
-        { band: 70, size: [16, 34], density: 1.5, v: 0.04, paper: PAPER, pines: 0.5, back: 0.06 });
+        { band: 70, size: [16, 34], density: 1.5, v: 0.04, paper: PAPER, k, pines: 0.5, back: 0.06 });
       // dense dark clusters (under the maple, mid slope, lower right, bottom pines in the mist)
-      paintFoliageBand(ctx, r, nz, [[-140, 640], [-40, 650], [60, 680], [130, 720]], { band: 90, size: [20, 40], density: 2.2, v: 0.03, paper: PAPER, pines: 0.25, back: 0.05 });
-      paintFoliageBand(ctx, r, nz, [[150, 720], [230, 750], [300, 800], [340, 860]], { band: 110, size: [20, 42], density: 2.2, v: 0.03, paper: PAPER, pines: 0.35, back: 0.05 });
-      paintFoliageBand(ctx, r, nz, [[200, 880], [280, 900], [360, 950], [420, 1000], [470, 1080]], { band: 140, size: [22, 44], density: 2.1, v: 0.03, paper: PAPER, pines: 0.4, back: 0.05 });
-      paintFoliageBand(ctx, r, nz, [[-140, 770], [-60, 800], [20, 860], [80, 930]], { band: 100, size: [22, 44], density: 2.2, v: 0.03, paper: PAPER, pines: 0.3, back: 0.05 });
-      paintFoliageBand(ctx, r, nz, [[-140, 900], [-40, 960], [40, 1040], [100, 1120]], { band: 120, size: [22, 44], density: 3.0, v: 0.03, paper: PAPER, pines: 0.3, back: 0.05 });
-      paintFoliageBand(ctx, r, nz, [[400, 950], [480, 975], [560, 1010], [640, 1060]], { band: 110, size: [18, 34], density: 2.0, v: 0.05, paper: PAPER, pines: 0.7, back: 0.08 });
-      paintFoliageBand(ctx, r, nz, [[90, 520], [200, 486], [300, 488], [370, 478], [420, 520]], { band: 30, size: [6, 14], density: 0.9, v: 0.06, paper: PAPER, pines: 0.1, back: 0.1 });
+      paintFoliageBand(ctx, r, nz, [[-140, 640], [-40, 650], [60, 680], [130, 720]], { band: 90, size: [20, 40], density: 2.2, v: 0.03, paper: PAPER, k, pines: 0.25, back: 0.05 });
+      paintFoliageBand(ctx, r, nz, [[150, 720], [230, 750], [300, 800], [340, 860]], { band: 110, size: [20, 42], density: 2.2, v: 0.03, paper: PAPER, k, pines: 0.35, back: 0.05 });
+      paintFoliageBand(ctx, r, nz, [[200, 880], [280, 900], [360, 950], [420, 1000], [470, 1080]], { band: 140, size: [22, 44], density: 2.1, v: 0.03, paper: PAPER, k, pines: 0.4, back: 0.05 });
+      paintFoliageBand(ctx, r, nz, [[-140, 770], [-60, 800], [20, 860], [80, 930]], { band: 100, size: [22, 44], density: 2.2, v: 0.03, paper: PAPER, k, pines: 0.3, back: 0.05 });
+      paintFoliageBand(ctx, r, nz, [[-140, 900], [-40, 960], [40, 1040], [100, 1120]], { band: 120, size: [22, 44], density: 3.0, v: 0.03, paper: PAPER, k, pines: 0.3, back: 0.05 });
+      paintFoliageBand(ctx, r, nz, [[400, 950], [480, 975], [560, 1010], [640, 1060]], { band: 110, size: [18, 34], density: 2.0, v: 0.05, paper: PAPER, k, pines: 0.7, back: 0.08 });
+      paintFoliageBand(ctx, r, nz, [[70, 506], [130, 490], [205, 484]], { band: 24, size: [8, 18], density: 2.2, v: 0.04, paper: PAPER, k, pines: 0.15, back: 0.08 });
+      paintFoliageBand(ctx, r, nz, [[348, 482], [372, 468], [400, 474], [430, 506]], { band: 24, size: [8, 18], density: 2.2, v: 0.04, paper: PAPER, k, pines: 0.1, back: 0.08 });
     });
     const fol = inkify(api, folRaw, { edge: 0.4, granulation: 0.15, bleed: 0.9 });
     layers.push(api.tex(fol, { rect: folRect, z: 1.15, name: 'foliage', sway: { amp: 1.2, freq: 0.25, scale: 200, power: 1.5, anchor: [300, 1080], radius: 600 } }));
-    layers.push(makeMist(api, { top: 830, bottom: 1140, z: 1.12, lobe: 80, seed: 5, drift: 12, density: 0.9, softness: 10, extent: [360, 960, 160] }));
+    layers.push(makeMist(api, { top: 830, bottom: 1140, z: 1.12, lobe: 80, seed: 5, drift: 12, density: 0.9, softness: 10, extent: [480, 1000, 160] }));
 
     // ---------------------------------------------------------------- pavilion and maples
     const pavRect = [160, 300, 240, 200];

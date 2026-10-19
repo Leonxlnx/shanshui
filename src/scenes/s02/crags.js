@@ -41,20 +41,34 @@ export function cragSilhouette(P, nz) {
   };
 }
 
-export function treeDab(g, r, x, y, h, col, colLight) {
-  if (r() < 0.62) {
-    // conifer: stacked drooping tiers narrowing to a point
+export function treeDab(g, r, x, y, h, col, colLight, pineShare = 0.1) {
+  const kind = r();
+  if (kind < 0.55) {
+    // conifer: stacked drooping tiers narrowing to a point; the trunk shows only under the lowest tier
     const tiers = 3 + ((r() * 3) | 0);
-    const w = h * r.range(0.5, 0.75);
-    stroke(g, [[x, y + h * 0.05], [x + r.range(-1, 1), y - h * 0.9]], { width: Math.max(0.8, h * 0.05), color: col, rng: r, profile: 'taper' });
+    const w = h * r.range(0.45, 0.7);
+    stroke(g, [[x, y + h * 0.05], [x + r.range(-1, 1), y - h * 0.45]], { width: Math.max(0.7, h * 0.05), color: col, rng: r, profile: 'taper' });
     for (let i = 0; i < tiers; i++) {
       const s = i / (tiers - 1);
-      const ty = y - h * (0.18 + 0.7 * s);
-      const tw = w * (1 - 0.72 * s) * r.range(0.8, 1.2);
-      blob(g, x + r.range(-0.12, 0.12) * w, ty, tw * 0.6, { color: col, rng: r, irregular: 0.55, squash: 0.5, sides: 9 });
+      const ty = y - h * (0.24 + 0.66 * s);
+      const tw = w * (1 - 0.75 * s) * r.range(0.8, 1.2);
+      blob(g, x + r.range(-0.1, 0.1) * w, ty, tw * 0.6, { color: col, rng: r, irregular: 0.55, squash: 0.45, sides: 9 });
       if (r() < 0.5) blob(g, x + r.range(-0.4, 0.4) * tw, ty + r.range(0, 0.1) * h, tw * 0.3, { color: col, rng: r, irregular: 0.5, squash: 0.6, sides: 8 });
     }
-    blob(g, x, y - h * 0.93, Math.max(0.8, w * 0.12), { color: col, rng: r, irregular: 0.3, squash: 1.4 });
+    blob(g, x, y - h * 0.92, Math.max(0.7, w * 0.1), { color: col, rng: r, irregular: 0.3, squash: 1.6 });
+  } else if (kind < 0.55 + pineShare) {
+    // flat-topped pine: a leaning, slightly crooked trunk carrying two or three flat needle pads
+    const lean = r.range(-0.22, 0.22);
+    stroke(g, [[x, y + h * 0.05], [x + lean * h * 0.4 + r.range(-0.06, 0.06) * h, y - h * 0.45], [x + lean * h, y - h * 0.82]], { width: [Math.max(0.8, h * 0.075), Math.max(0.5, h * 0.03)], profile: 'even', color: col, rng: r });
+    const np = 3 + ((r() * 2) | 0);
+    for (let i = 0; i < np; i++) {
+      const s = i / Math.max(1, np - 1);
+      const pw = h * r.range(0.32, 0.5) * (1 - 0.4 * s);
+      const px = x + lean * h * (0.4 + 0.5 * s) + (i % 2 ? 1 : -1) * pw * r.range(0.1, 0.4);
+      const py = y - h * (0.32 + 0.58 * s);
+      blob(g, px, py, pw, { color: col, rng: r, irregular: 0.35, squash: 0.3, sides: 10 });
+      blob(g, px + r.range(-0.4, 0.4) * pw, py - pw * 0.12, pw * 0.55, { color: col, rng: r, irregular: 0.4, squash: 0.35, sides: 9 });
+    }
   } else {
     // broadleaf / pine canopy clump: overlapping round blots, darker core
     const R = h * r.range(0.36, 0.52);
@@ -123,41 +137,51 @@ export function paintCrag(ctx, api, P, paper, k) {
   g.save();
   g.clip(path);
 
-  // 1. body wash, stronger toward the ridge
+  // 1. body wash, a little stronger toward the ridge (the lit faces stay pale)
   const body = P.body ?? 1;
   const vb = v + (1 - v) * 0.4;
   const gr = g.createLinearGradient(0, top0, 0, P.base);
-  gr.addColorStop(0, ink(vb, Math.min(0.9, 0.62 * body))); gr.addColorStop(0.4, ink(vb, Math.min(0.8, 0.42 * body))); gr.addColorStop(0.8, ink(vb, 0.15 * body)); gr.addColorStop(1, ink(vb, 0));
+  gr.addColorStop(0, ink(vb, Math.min(0.8, 0.46 * body))); gr.addColorStop(0.4, ink(vb, Math.min(0.7, 0.34 * body))); gr.addColorStop(0.8, ink(vb, 0.12 * body)); gr.addColorStop(1, ink(vb, 0));
   g.fillStyle = gr; g.fill(path);
 
-  // 2. shadow flanks of each lobe (soft wash)
-  pass(7 * sc, (c) => {
+  // nearest lobe and the side of it a point is on: -1 left edge .. +1 right edge; shade 1 = shadow flank
+  const lobeAt = (x) => { let L = P.lobes[0], best = 1e9; for (const lb of P.lobes) { const d = Math.abs(x - lb.x) / (x < lb.x ? lb.wl : lb.wr); if (d < best) { best = d; L = lb; } } return L; };
+  const sideAt = (x, L) => (x - L.x) / ((x < L.x ? L.wl : L.wr) || 1);
+  const shadeAt = (x) => { const s = sideAt(x, lobeAt(x)); return light > 0 ? ss(0.35, -0.55, s) : ss(-0.35, 0.55, s); };
+
+  // 2. shadow flanks of each lobe (soft wash with a ragged inner edge)
+  pass(5 * sc, (c) => {
     for (const L of P.lobes) {
       const hw = light > 0 ? L.wl : L.wr;
-      const sx = L.x - light * hw * r.range(0.15, 0.4);
+      const hl = P.base - L.top;
+      const sx = L.x - light * hw * r.range(0.1, 0.3);
       const poly = new Path2D();
       poly.moveTo(L.x + light * 4, L.top - 10);
-      poly.lineTo(sx, L.top + (P.base - L.top) * 0.4);
-      poly.lineTo(sx - light * hw * 0.2, P.base);
+      const ph = r() * 50;
+      for (let s2 = 0.08; s2 <= 1.001; s2 += 0.08) {
+        const xe = L.x + light * 4 + (sx - L.x - light * 4) * Math.min(1, s2 * 2.2) - light * hw * 0.2 * Math.max(0, s2 - 0.45) + nz.n2(ph + s2 * 4, 1.3) * hw * 0.14;
+        poly.lineTo(xe, L.top - 10 + (hl + 10) * s2);
+      }
       poly.lineTo(L.x - light * hw * 1.2, P.base);
       poly.lineTo(L.x - light * hw * 1.2, L.top - 10);
       poly.closePath();
       const gg = c.createLinearGradient(0, L.top, 0, P.base);
-      const a = (P.shadow ?? 0.35) * r.range(0.8, 1.2);
-      gg.addColorStop(0, ink(v + (1 - v) * 0.25, a)); gg.addColorStop(0.6, ink(v + (1 - v) * 0.3, a * 0.5)); gg.addColorStop(1, ink(v, 0));
+      const a = (P.shadow ?? 0.35) * r.range(0.9, 1.25);
+      gg.addColorStop(0, ink(v + (1 - v) * 0.2, a)); gg.addColorStop(0.6, ink(v + (1 - v) * 0.28, a * 0.6)); gg.addColorStop(1, ink(v, 0));
       c.fillStyle = gg; c.fill(poly);
     }
   });
-  // 3. wet-on-wet mottling: blots of varying strength
+  // 3. wet-on-wet mottling: rounded blots of varying strength (no vertical curtains)
   pass(2.2 * sc, (c) => {
     const nM = Math.round(W * H / 1300 * (P.mottle ?? 1));
     for (let i = 0; i < nM; i++) {
       const x = x0 + r() * W, hf = hOf(x);
       if (hf < 0.05) continue;
       const y = sil(x) + Math.pow(r(), 1.3) * H * hf * 0.9;
-      const R = (6 + 24 * r()) * sc;
-      const dark = r() < 0.62;
-      blob(c, x, y, R, { color: dark ? ink(v + (1 - v) * 0.25 * r(), r.range(0.08, 0.28)) : rgba(paper, r.range(0.15, 0.4)), rng: r, irregular: 0.65, squash: r.range(1.0, 2.0), rot: 1.57 });
+      const R = (6 + 20 * r()) * sc;
+      const dark = r() < 0.72;
+      const sh = shadeAt(x);
+      blob(c, x, y, R, { color: dark ? ink(v + (1 - v) * 0.25 * r(), r.range(0.06, 0.22) * (0.6 + 0.6 * sh)) : rgba(paper, r.range(0.1, 0.25)), rng: r, irregular: 0.65, squash: r.range(0.6, 1.1), rot: r() * 3 });
     }
   });
   // 3b. lit granite planes; their shadow-side edges become creases
@@ -178,35 +202,51 @@ export function paintCrag(ctx, api, P, paper, k) {
         for (const p of pts) poly.lineTo(p[0] - hwAt(p), p[1]);
         for (let q = pts.length - 1; q >= 0; q--) poly.lineTo(pts[q][0] + hwAt(pts[q]), pts[q][1]);
         poly.closePath();
-        c.fillStyle = rgba(paper, r.range(0.3, 0.55) * (P.planes ?? 1));
+        c.fillStyle = rgba(paper, r.range(0.22, 0.42) * (P.planes ?? 1));
         c.fill(poly);
         creases.push(pts.map((p) => [p[0] - light * hwAt(p), p[1]]));
       }
     }
   });
-  // 4. creases and vertical cun streaks following the flanks
-  pass(0.7, (c) => {
-    for (const e of creases) stroke(c, e.slice(0, 8), { width: [(1.5 + 2.5 * r()) * sc, 0.4], profile: 'taper', color: ink(v + (1 - v) * 0.1, r.range(0.45, 0.8) * (P.planes ?? 1)), rng: r, rough: 0.5 });
-    const nS = Math.round(W * H / 1800 * (P.streaks ?? 1));
-    for (let i = 0; i < nS; i++) {
+  // 4. creases, then hemp-fibre cun: bundles of thin, slightly sagging strokes running down and
+  //    splaying outward over the faces, dense and dark on the shadow flanks, sparse on the lit faces
+  pass(0.35, (c) => {
+    for (const e of creases) stroke(c, e.slice(0, 8), { width: [(1.3 + 2.2 * r()) * sc + 0.3, 0.4], profile: 'taper', color: ink(v + (1 - v) * 0.08, r.range(0.5, 0.85) * (P.planes ?? 1)), rng: r, rough: 0.5 });
+    const nB = Math.round(W * H / 480 * (P.streaks ?? 1));
+    for (let i = 0; i < nB; i++) {
       const x = x0 + r() * W, hf = hOf(x);
-      if (hf < 0.12) continue;
-      let L = null, best = 1e9;
-      for (const lb of P.lobes) { const d = Math.abs(x - lb.x) / (x < lb.x ? lb.wl : lb.wr); if (d < best) { best = d; L = lb; } }
-      const dd = Math.pow(r(), 1.8) * H * hf * 0.45;
-      const y = sil(x) + 2 + dd;
-      const len = (10 + 36 * r()) * sc * (0.5 + hf);
-      const ang = Math.max(-0.5, Math.min(0.5, ((x - L.x) / ((x < L.x ? L.wl : L.wr) || 1)) * 0.35)) + r.range(-0.08, 0.08);
-      const pts = [];
-      for (let s2 = 0; s2 <= 1.001; s2 += 0.25) pts.push([x + Math.sin(ang) * len * s2 + nz.n2(i * 1.7, s2 * 2) * 3 * sc, y + Math.cos(ang) * len * s2]);
-      const near = 1 - dd / (H * 0.6 + 1);
-      stroke(c, pts, { width: [(0.8 + 2.4 * r()) * sc + 0.4, 0.3], profile: 'taper', color: ink(v + (1 - v) * 0.15 * r(), (0.15 + 0.45 * near) * r.range(0.6, 1)), rng: r, rough: 0.5 });
+      if (hf < 0.1) continue;
+      const L = lobeAt(x), side = sideAt(x, L), shade = shadeAt(x);
+      if (r() > 0.3 + 0.7 * shade) continue;
+      const dd = Math.pow(r(), 1.5) * H * hf * 0.62;
+      const y = sil(x) + 3 + dd;
+      const len = (14 + 44 * r()) * sc * (0.6 + 0.6 * hf);
+      const ang = Math.max(-0.65, Math.min(0.65, side * 0.55)) + r.range(-0.1, 0.1);
+      const bend = r.range(-0.3, 0.3);
+      const nS = 2 + ((r() * 4) | 0), sp = (2.4 + 3 * r()) * sc;
+      const near = 1 - dd / (H * 0.7 + 1);
+      const a0 = (0.22 + 0.5 * shade) * (0.35 + 0.65 * near);
+      if (r() < 0.22) {
+        // a dry, rubbed stroke: broken bristle texture over the shadow wash
+        const pts = [];
+        for (let s2 = 0; s2 <= 1.001; s2 += 0.2) { const a = ang + bend * s2; pts.push([x + Math.sin(a) * len * s2, y + Math.cos(a) * len * s2]); }
+        dryStroke(c, pts, { width: (5 + 7 * r()) * sc, bristles: 6, color: ink(v + (1 - v) * 0.15, 1), alpha: a0 * 0.8, dry: 0.55, rng: r, noise: nz, profile: 'taper' });
+        continue;
+      }
+      for (let j = 0; j < nS; j++) {
+        const o = (j - (nS - 1) / 2) * sp;
+        const ox = o * Math.cos(ang), oy = -o * Math.sin(ang) + r.range(-3, 3) * sc;
+        const l2 = len * r.range(0.55, 1.05);
+        const pts = [];
+        for (let s2 = 0; s2 <= 1.001; s2 += 0.25) { const a = ang + bend * s2; pts.push([x + ox + Math.sin(a) * l2 * s2, y + oy + Math.cos(a) * l2 * s2]); }
+        stroke(c, pts, { width: [(0.6 + 1.0 * r()) * sc + 0.35, 0.25], profile: 'taper', color: ink(v + (1 - v) * 0.12 * r(), a0 * r.range(0.6, 1.15)), rng: r, rough: 0.7 });
+      }
     }
   });
   // 5. soft darker band just under the ridge line
   pass(5 * sc, (c) => {
     c.lineJoin = 'round';
-    c.strokeStyle = ink(v + (1 - v) * 0.2, 0.32 * (P.edge ?? 1));
+    c.strokeStyle = ink(v + (1 - v) * 0.2, 0.16 * (P.edge ?? 1));
     c.lineWidth = 12 * sc;
     c.beginPath(); top.forEach((p, i) => (i ? c.lineTo(p[0], p[1] + 3 * sc) : c.moveTo(p[0], p[1] + 3 * sc))); c.stroke();
   });
@@ -219,36 +259,48 @@ export function paintCrag(ctx, api, P, paper, k) {
         if (hf < 0.3) continue;
         const pres = (P.crown ?? 0.6) * ss(0.3, 0.75, hf) * (0.4 + 0.6 * ss(-0.6, 0.2, nz.n2(x / 50, 12.3)));
         if (r() > pres) continue;
-        const th = treeH * r.range(0.45, 0.95);
-        treeDab(c, r, x + r.range(-2, 2), sil(x) + th * 0.5 + Math.pow(r(), 1.5) * cd, th, tint(treeV), tintL(treeV));
+        const th = Math.min(treeH * r.range(0.45, 0.95), H * 0.5);
+        treeDab(c, r, x + r.range(-2, 2), sil(x) + th * 0.5 + Math.pow(r(), 1.5) * cd, th, tint(treeV), tintL(treeV), P.pines);
       }
     }
-    const nF = Math.round(W * H / 900 * (P.clumps ?? 1));
+    // tree drifts down the faces: denser on the shadow flanks and in the creases
+    const nF = Math.round(W * H / 800 * (P.clumps ?? 1));
     for (let i = 0; i < nF; i++) {
       const x = x0 + r() * W, hf = hOf(x);
       if (hf < 0.15) continue;
-      const dd = Math.pow(r(), 2.2) * H * hf * 0.75;
+      const dd = Math.pow(r(), 2.0) * H * hf * 0.75;
       const y = sil(x) + 4 + dd;
-      const pres = ss(-0.3, 0.4, nz.n2(x / 60, y / 60 + 5.1));
+      const pres = ss(-0.3, 0.4, nz.n2(x / 60, y / 60 + 5.1)) * (0.45 + 0.55 * shadeAt(x));
       if (r() > pres) continue;
-      const n = 2 + ((r() * 4) | 0);
-      const th = treeH * r.range(0.45, 0.85) * (1 - 0.4 * dd / H);
-      for (let j = 0; j < n; j++) treeDab(c, r, x + r.range(-1, 1) * th * 0.9, y + r.range(-0.3, 0.6) * th, th * r.range(0.7, 1.1), tint(treeV), tintL(treeV));
+      const n = 2 + ((r() * 5) | 0);
+      const th = Math.min(treeH * r.range(0.45, 0.85) * (1 - 0.4 * dd / H), H * 0.42);
+      for (let j = 0; j < n; j++) treeDab(c, r, x + r.range(-1, 1) * th * 0.9, y + r.range(-0.3, 0.6) * th, th * r.range(0.7, 1.1), tint(treeV), tintL(treeV), P.pines);
     }
   });
   g.restore(); // clip
 
-  // 7. broken dry contour along the ridge
-  let seg = [];
+  // 7. broken contour along the ridge: a crisp dark line on the shadow flanks and crests, dry and
+  //    gappy on the lit flanks
+  let seg = [], segShade = 0;
   const flush = () => {
-    if (seg.length > 3) dryStroke(g, seg, { width: (2.2 + 1.6 * r()) * sc + 0.5, bristles: 5, color: ink(v + (1 - v) * 0.08, 0.7), alpha: 0.6, dry: 0.4, rng: r, noise: nz });
-    seg = [];
+    if (seg.length > 3) {
+      const sh = segShade / seg.length;
+      dryStroke(g, seg, { width: (1.8 + 1.4 * r()) * sc + 0.6 + sh * 1.2 * sc, bristles: 4, color: ink(v * 0.8, 0.85), alpha: (0.55 + 0.3 * sh) * (P.contour ?? 1), dry: 0.42 - 0.22 * sh, rng: r, noise: nz });
+      if (sh > 0.4) stroke(g, seg, { width: [(0.9 + 0.8 * r()) * sc + 0.4, 0.5], profile: 'brush', color: ink(v * 0.7, 0.55 * sh * (P.contour ?? 1)), rng: r, rough: 0.5 });
+    }
+    seg = []; segShade = 0;
   };
+  let arcC = 0;
   for (let j = 0; j < top.length; j++) {
     const [x, y] = top[j];
-    if (hOf(x) < 0.1 || r() > 0.1 + ss(0.25, 0.7, hOf(x))) { flush(); continue; }
-    seg.push([x, y + 1]);
-    if (seg.length > 20 + r() * 30) { flush(); seg.push([x, y + 1]); }
+    if (j) arcC += Math.hypot(x - top[j - 1][0], y - top[j - 1][1]);
+    const hf = hOf(x);
+    const slope = (sil(x + 12) - sil(x - 12)) / 24;          // < 0 rising to the right: a left flank
+    const sh = light > 0 ? ss(0.05, -0.4, slope) : ss(-0.05, 0.4, slope);
+    const on = nz.n2(arcC / 40, 17.7) + 0.5 * sh + 0.35 * ss(0.3, 0.8, hf) - 0.25;
+    if (hf < 0.08 || on < 0) { flush(); continue; }
+    seg.push([x, y + 1]); segShade += sh;
+    if (seg.length > 24 + r() * 30) { flush(); seg.push([x, y + 1]); }
   }
   flush();
 
@@ -261,7 +313,7 @@ export function paintCrag(ctx, api, P, paper, k) {
         const dens = (P.trees ?? 1) * ss(0.2, 0.6, hf) * (0.35 + 0.65 * ss(-0.5, 0.2, nz.n2(x / (treeH * 3.5), 8.8)));
         if (r() < dens) {
           const th = treeH * (0.55 + 0.7 * r() * r()) * (0.7 + 0.3 * hf);
-          treeDab(c, r, x, sil(x) + th * 0.22, th, tint(treeV), tintL(treeV));
+          treeDab(c, r, x, sil(x) + th * 0.22, th, tint(treeV), tintL(treeV), P.pines);
         }
         x += treeH * r.range(0.16, 0.42);
       }
@@ -270,6 +322,15 @@ export function paintCrag(ctx, api, P, paper, k) {
       for (let i = 0; i < W / 25; i++) {
         const x = x0 + r() * W; if (hOf(x) < 0.3) continue;
         dots(c, x, sil(x) + r.range(4, 30) * sc, 10 * sc, 5, { size: [0.8 * sc, 2.2 * sc], color: ink(treeV, 1), alpha: [0.5, 0.9], rng: r, squash: 0.6 });
+      }
+      // moss dots and shrubs scattered down the faces, mostly on the shadow flanks
+      const nD = Math.round(W * H / 2200 * (P.faceDots ?? 1));
+      for (let i = 0; i < nD; i++) {
+        const x = x0 + r() * W, hf = hOf(x); if (hf < 0.2) continue;
+        if (r() > 0.25 + 0.75 * shadeAt(x)) continue;
+        const dd = Math.pow(r(), 1.6) * H * hf * 0.65;
+        const near = 1 - dd / (H * 0.7 + 1);
+        dots(c, x, sil(x) + 6 + dd, (6 + 8 * r()) * sc, 3 + ((r() * 6) | 0), { size: [0.7 * sc, 2.4 * sc], color: ink(treeV + (1 - treeV) * 0.1, 1), alpha: [0.35 * near, 0.85 * near], rng: r, squash: 0.6 });
       }
     }
   });
@@ -281,14 +342,21 @@ export function paintCrag(ctx, api, P, paper, k) {
   const mg = mc.getContext('2d');
   const img = mg.createImageData(mw, mh);
   const fade = P.fade || [0.45, 1];
+  const bands = P.bands || [];                             // [[fraction from the top, half width, strength]]: mist crossing the mass
   for (let ix = 0; ix < mw; ix++) {
     const X = bx + (ix + 0.5) * ds;
     const tY = sil(X), hh = P.base - tY;
     const f0 = tY + hh * fade[0], f1 = tY + hh * fade[1];
     for (let jy = 0; jy < mh; jy++) {
       const Y = by + (jy + 0.5) * ds;
-      const n = nz.fbm2(X / 70, Y / 30, 3);
-      const m = 1 - ss(f0, Math.max(f0 + 4, f1), Y + n * Math.max(20, hh) * 0.25);
+      // mist lies in horizontal banks: the noise varies slowly across and faster down
+      const n = nz.fbm2(X / 190, Y / 40, 3) * 0.8 + nz.n2(X / 45, Y / 18) * 0.25;
+      const Yn = Y + n * Math.max(20, hh) * 0.22;
+      let m = 1 - ss(f0, Math.max(f0 + 4, f1), Yn);
+      for (const [fb, hw, st] of bands) {
+        const d = Math.abs(Yn - (P.base - H * (1 - fb))) / (H * hw);
+        m *= 1 - st * (1 - ss(0.2, 1, d));
+      }
       img.data[(jy * mw + ix) * 4 + 3] = Math.round(m * 255);
     }
   }

@@ -9,6 +9,7 @@ import { inkify } from '../lib/inkfx.js';
 import { PAPER_COOL } from '../lib/brush.js';
 import { makeIcefall } from './s06/ice.js';
 import { bakeSnowCliff } from './s06/snowcliff.js';
+import { snowifyPeaks } from './s06/snowpeak.js';
 
 const SV = 'snow';
 
@@ -41,24 +42,24 @@ export default {
       ],
     });
     layers.push(far.layer({ z: 7.5 }));
-    layers.push(makeCloudSea(api, { yBack: 235, yFront: 380, rows: 6, lobe: 50, z: 6.5, seed: 1, drift: 3, farFade: 0.6, shade: 0.5, wisp: 0.35, wispsAbove: 0.3, color: [247, 246, 243], shadowColor: [186, 184, 181] }));
+    layers.push(makeCloudSea(api, { yBack: 235, yFront: 380, rows: 3, lobe: 80, z: 6.5, seed: 1, drift: 3, farFade: 0.6, shade: 0.38, softness: 1.2, perspective: 0.8, detail: 0.25, wisp: 0.35, wispsAbove: 0.3, color: [247, 246, 243], shadowColor: [186, 184, 181] }));
 
     // ---- the big snowy massif top right
     const big = makePeaks(api, {
       variant: SV,
       peaks: [{
         // a pyramid: summit with shoulders stepping down both ridges
-        x: 1533, width: 640, top: 46, base: 440, tone: 0.26, seed: 64, fade: 0.5, treeSize: 0.6, trees: 0.8, wetBlur: 0.9, detail: 1.25, columns: [
-          { dx: -290, top: 270, hw: 90, cap: 'point', spread: 0.4, lean: -0.04 }, { dx: -190, top: 205, hw: 100, cap: 'point', spread: 0.4 },
-          { dx: 310, top: 235, hw: 95, cap: 'point', spread: 0.4 }, { dx: 210, top: 170, hw: 105, cap: 'point', spread: 0.4 },
-          { dx: -95, top: 115, hw: 115, cap: 'point', spread: 0.4, lean: -0.03 }, { dx: 115, top: 100, hw: 115, cap: 'point', spread: 0.4, lean: 0.03 },
-          { dx: 0, top: 46, hw: 130, cap: 'point', spread: 0.4 },
+        x: 1533, width: 640, top: 46, base: 440, tone: 0.3, seed: 64, fade: 0.5, treeSize: 0.6, trees: 0.6, wetBlur: 0.9, detail: 1.25, columns: [
+          { dx: -300, top: 280, hw: 100, cap: 'round', spread: 0.45, lean: -0.04 }, { dx: -215, top: 215, hw: 115, cap: 'round', spread: 0.45 },
+          { dx: 320, top: 245, hw: 105, cap: 'round', spread: 0.45 }, { dx: 225, top: 180, hw: 120, cap: 'point', spread: 0.45 },
+          { dx: -105, top: 125, hw: 130, cap: 'round', spread: 0.45, lean: -0.03 }, { dx: 120, top: 108, hw: 135, cap: 'round', spread: 0.45, lean: 0.03 },
+          { dx: 0, top: 46, hw: 150, cap: 'point', spread: 0.45 },
         ],
       }],
     });
-    layers.push(big.layer({ z: 5 }));
+    layers.push(snowifyPeaks(api, big, { lo: 0.17, hi: 0.86, cap: 4, thr: 0.62, seed: 1 }).layer({ z: 5 }));
     layers.push(makeMist(api, { top: 345, height: 90, lobe: 55, z: 4.8, seed: 9, drift: 6, extent: [1150, 2050, 120] }));
-    layers.push(makeCloudSea(api, { yBack: 385, yFront: 540, rows: 6, lobe: 85, z: 4.6, seed: 2, drift: 4, farFade: 0.4, perspective: 1.1, shade: 0.65, wisp: 0.45, wispsAbove: 0.4, texture: 0.6, color: [247, 246, 243], shadowColor: [178, 176, 173] }));
+    layers.push(makeCloudSea(api, { yBack: 385, yFront: 540, rows: 4, lobe: 100, softness: 2, detail: 0.55, z: 4.6, seed: 2, drift: 4, farFade: 0.4, perspective: 1.1, shade: 0.65, wisp: 0.45, wispsAbove: 0.4, texture: 0.6, color: [247, 246, 243], shadowColor: [178, 176, 173] }));
 
     // ---- small right peaks and the central snowy peak
     const mid = makePeaks(api, {
@@ -66,43 +67,48 @@ export default {
       peaks: [
         { x: 1810, top: 385, base: 600, width: 300, cols: 3, tone: 0.42, fade: 0.45, seed: 65, shape: 'spire' },
         {
-          x: 1160, width: 520, top: 300, base: 600, tone: 0.22, seed: 66, fade: 0.4, columns: [
+          x: 1160, width: 520, top: 300, base: 600, tone: 0.34, seed: 66, fade: 0.4, trees: 0.6, columns: [
             { dx: 300, top: 430, hw: 70 }, { dx: 200, top: 390, hw: 60, cap: 'point' }, { dx: -140, top: 430, hw: 55 },
             { dx: -70, top: 360, hw: 55, cap: 'point' }, { dx: 100, top: 345, hw: 70, cap: 'point' }, { dx: 0, top: 300, hw: 60, cap: 'point' },
           ],
         },
       ],
     });
-    layers.push(mid.layer({ z: 3.3 }));
+    layers.push(snowifyPeaks(api, mid, { lo: 0.04, hi: 0.95, cap: 4, thr: 0.7, white: 0.2, seed: 2 }).layer({ z: 3.3 }));
     layers.push(makeMist(api, { top: 530, height: 100, lobe: 70, z: 3.1, seed: 10, drift: 7, extent: [900, 2050, 140] }));
-    layers.push(makeCloudSea(api, { yBack: 570, yFront: 800, rows: 6, lobe: 135, z: 2.9, seed: 3, drift: 5, farFade: 0.3, perspective: 0.9, shade: 0.62, wisp: 0.4, wispsAbove: 0.35, texture: 0.6, color: [247, 246, 243], shadowColor: [172, 170, 167] }));
+    layers.push(makeCloudSea(api, { yBack: 570, yFront: 800, rows: 4, lobe: 150, softness: 3.5, detail: 0.65, z: 2.9, seed: 3, drift: 5, farFade: 0.3, perspective: 0.9, shade: 0.62, wisp: 0.4, wispsAbove: 0.35, texture: 0.6, color: [247, 246, 243], shadowColor: [172, 170, 167] }));
 
     // ---- lower right peak (base kept clear of the seal corner)
     const low = makePeaks(api, {
       variant: SV,
       peaks: [{
-        x: 1770, width: 330, top: 597, base: 860, tone: 0.18, seed: 67, fade: 0.45, columns: [
+        x: 1770, width: 330, top: 597, base: 860, tone: 0.24, seed: 67, fade: 0.45, trees: 0.7, columns: [
           { dx: -170, top: 720, hw: 50 }, { dx: 170, top: 700, hw: 60 }, { dx: -90, top: 650, hw: 60, cap: 'point' },
           { dx: 90, top: 640, hw: 60 }, { dx: 0, top: 597, hw: 55, cap: 'point' },
         ],
       }],
     });
-    layers.push(low.layer({ z: 2.3 }));
-    layers.push(makeCloudSea(api, { yBack: 800, yFront: 1180, rows: 5, lobe: 200, z: 2.0, seed: 4, drift: 6, farFade: 0.2, shade: 0.64, wisp: 0.35, wispsAbove: 0.3, texture: 0.65, color: [247, 246, 243], shadowColor: [166, 164, 161] }));
+    layers.push(snowifyPeaks(api, low, { lo: 0.1, hi: 0.78, cap: 5, thr: 0.62, seed: 3 }).layer({ z: 2.3 }));
+    layers.push(makeCloudSea(api, { yBack: 800, yFront: 1180, rows: 3, lobe: 220, softness: 3.5, detail: 0.75, z: 2.0, seed: 4, drift: 6, farFade: 0.2, shade: 0.64, wisp: 0.35, wispsAbove: 0.3, texture: 0.65, color: [247, 246, 243], shadowColor: [166, 164, 161] }));
     tm('peaks+clouds');
 
     const snow = makeSnow(api, { intensity: 1, wind: 0.8, seed: 6, calm: [1700, 830, 1806, 982] });
     layers.push(snow[0], snow[1]);
 
     // ---- central cliffs: the pavilion pillar and the right spur (z 1.4)
+    const SETTLE = { ink: [0.3, 0.14], cap: 5, mound: 2.5, blur: 2.5, thr: 0.42, flat: [0.55, 0.92], lobes: 0.6 };
     const midRock = bakeSnowCliff(api, [580, 280, 640, 680], [
       { poly: [[884, 930], [884, 640], [890, 560], [873, 505], [920, 512], [960, 518], [1010, 540], [1040, 580], [1068, 620], [1102, 689], [1130, 760], [1150, 830], [1160, 930]],
-        face: 0.42, cap: 10, cover: 0.4, ledges: 0.7, lump: [30, 80], fade: [780, 900], pines: [[930, 560, 70, -10, 0.3], [975, 600, 60, 10, 0.5], [1080, 705, 70, 0, 0.6], [1010, 640, 55, 5, 0.2]] },
-      { poly: [[640, 940], [640, 700], [640, 520], [637, 379], [666, 350], [735, 345], [804, 342], [855, 345], [873, 367], [878, 482], [884, 640], [890, 940]],
-        face: 0.38, cap: 12, cover: 0.4, ledges: 0.7, lump: [30, 80], fade: [800, 920], pines: [[690, 410, 80, -15, -0.5], [760, 430, 70, 5, 0.4], [835, 480, 75, 15, 0.6], [740, 700, 80, 0, 0.3], [800, 600, 70, 8, 0.5], [700, 540, 65, -5, -0.3]] },
+        face: 0.56, facetBlur: 1.8, cap: 10, cover: 0.4, ledges: 0, rough: 10, litRange: 0.4, cun: 1.2, settle: SETTLE, fade: [780, 900],
+        pines: [[890, 512, 40, -4, 0.2], [990, 552, 44, 8, 0.5], [905, 530, 58, -8, -0.3], [930, 560, 70, -10, 0.3], [960, 548, 52, 6, 0.6], [975, 600, 60, 10, 0.5], [1010, 640, 55, 5, 0.2], [1035, 610, 48, 12, 0.7],
+          [1060, 668, 58, 8, 0.6], [1080, 705, 70, 0, 0.6], [1110, 760, 52, 10, 0.8], [940, 650, 46, -6, -0.4], [1000, 720, 50, 4, 0.5]] },
+      { poly: [[640, 940], [640, 700], [645, 600], [634, 520], [640, 440], [637, 379], [666, 350], [735, 345], [804, 342], [855, 345], [873, 367], [878, 482], [884, 640], [890, 940]],
+        face: 0.54, facetBlur: 1.8, cap: 12, cover: 0.4, ledges: 0, rough: 10, litRange: 0.4, cun: 1.2, settle: SETTLE, fade: [800, 920],
+        pines: [[665, 395, 62, -15, -0.6], [690, 410, 80, -15, -0.5], [730, 395, 52, 4, 0.2], [760, 430, 70, 5, 0.4], [805, 410, 56, 10, 0.6], [835, 480, 75, 15, 0.6],
+          [860, 430, 50, 12, 0.8], [700, 540, 65, -5, -0.3], [800, 600, 70, 8, 0.5], [850, 560, 52, 10, 0.7], [740, 700, 80, 0, 0.3], [690, 640, 50, -8, -0.4]] },
     ], { seed: 6 });
     layers.push(api.tex(midRock.src, { rect: midRock.rect, z: 1.4 }));
-    const pmo = { gnarl: 0.7, snow: 0.95, paper: PAPER_COOL, padDensity: 2.6, haze: 0.15, needles: 10, fanSpacing: 0.9, swayAmp: 1.5, swayFreq: 0.2, caps: { cap: 10, mound: 5, blur: 6 } };
+    const pmo = { gnarl: 0.7, snow: 0.95, paper: PAPER_COOL, padDensity: 2.6, haze: 0.15, needles: 10, fanSpacing: 0.9, swayAmp: 1.5, swayFreq: 0.2, ink: { bleed: 0.2, edge: 0.3 }, fans: { fanR: 2.1, needles: 22, needleWidth: 0.075, fanStep: 0.7, backTone: 0.45 }, caps: { cap: 16, mound: 9, blur: 8, pokeV: 0.55 } };
     const pD = makePine(api, { ...pmo, seed: 64, x: 700, y: 470, height: 120, lean: -20, bend: -40, reach: -0.7, padSize: 50, needle: 7, trunkWidth: 10 });
     const pE = makePine(api, { ...pmo, seed: 65, x: 815, y: 560, height: 110, lean: 15, bend: 45, reach: 0.7, padSize: 48, needle: 6, trunkWidth: 9 });
     const pF = makePine(api, { ...pmo, seed: 66, x: 960, y: 610, height: 100, lean: 10, bend: 30, reach: 0.5, padSize: 44, needle: 6, trunkWidth: 9 });
@@ -110,7 +116,7 @@ export default {
     tm('midrock');
 
     // frozen waterfall 2 and the pavilion on the pillar
-    const ice2 = makeIcefall(api, [820, 570, 140, 330], [{ x: 884, y0: 598, y1: 872, hw0: 30, hw1: 40, lean: 8, col: 11, seed: 2, fade: 0.72 }]);
+    const ice2 = makeIcefall(api, [820, 570, 140, 330], [{ x: 884, y0: 598, y1: 872, hw0: 36, hw1: 46, lean: 8, col: 17, seed: 2, fade: 0.72 }]);
     layers.push(api.tex(ice2, { rect: [820, 570, 140, 330], z: 1.4 }));
     const pav = bakeArch(api, [640, 240, 260, 130], (ctx) => {
       paintHall(ctx, { x: 690, y: 355, w: 80, snow: true, turn: 0.5, tiers: 1, steps: false, gable: false, seed: 61, paper: PAPER_COOL, fade: 0.08, aspect: 2.2, bays: [3, 1] });
@@ -122,10 +128,10 @@ export default {
     // ---- frozen waterfall 1 (z 1.25)
     const ice1 = makeIcefall(api, [500, 390, 280, 540], [
       // lower tiers first: the icicles of each upper tier hang over the lip below
-      { x: 604, y0: 705, y1: 930, hw0: 54, hw1: 50, lean: -6, col: 13, seed: 5, fade: 0.55, lip: 1.1, recess: 0.3 },
-      { x: 598, y0: 548, y1: 915, hw0: 58, hw1: 52, lean: -8, col: 15, seed: 4, fade: 0.72, lip: 1.2 },
-      { x: 690, y0: 545, y1: 830, hw0: 52, hw1: 46, lean: 8, col: 15, seed: 3, fade: 0.8, lip: 1.2 },
-      { x: 592, y0: 420, y1: 590, hw0: 46, hw1: 58, lean: 6, col: 13, seed: 1, fade: 0.95, recess: 0.8 },
+      { x: 604, y0: 705, y1: 930, hw0: 54, hw1: 50, lean: -6, col: 20, seed: 5, fade: 0.55, lip: 1.1, recess: 0.3 },
+      { x: 598, y0: 548, y1: 915, hw0: 58, hw1: 52, lean: -8, col: 22, seed: 4, fade: 0.72, lip: 1.2 },
+      { x: 690, y0: 545, y1: 830, hw0: 52, hw1: 46, lean: 8, col: 21, seed: 3, fade: 0.8, lip: 1.2 },
+      { x: 592, y0: 420, y1: 590, hw0: 52, hw1: 60, lean: 6, col: 20, seed: 1, fade: 0.95, recess: 0.8 },
     ]);
     layers.push(api.tex(ice1, { rect: [500, 390, 280, 540], z: 1.25 }));
     tm('ice');
@@ -134,23 +140,24 @@ export default {
     const leftRock = bakeSnowCliff(api, [-200, 330, 900, 900], [
       // face under the temple
       { poly: [[255, 400], [300, 386], [360, 380], [420, 382], [470, 386], [520, 392], [545, 410], [548, 480], [552, 600], [548, 700], [540, 790], [255, 790]],
-        face: 0.3, snowDepth: 12, cover: 0.5, ledges: 0.25, facet: 50, litRange: 0.55, fade: [660, 790] },
+        face: 0.46, facetBlur: 1.8, snowDepth: 12, cover: 0.5, ledges: 0, facet: 50, litRange: 0.6, cun: 1, settle: SETTLE, fade: [660, 790],
+        pines: [[270, 412, 46, -8, -0.4], [440, 405, 40, 6, 0.5], [530, 420, 44, 10, 0.7], [300, 455, 60, -10, -0.5], [350, 470, 48, 5, 0.3], [470, 450, 62, 8, 0.6], [520, 480, 50, 12, 0.8], [400, 560, 56, -4, 0.2], [500, 600, 60, 10, 0.6], [330, 660, 52, -8, -0.4]] },
       // upper-left shoulder, mostly snow
       { poly: [[-160, 470], [-90, 440], [-30, 425], [30, 428], [80, 445], [120, 440], [170, 452], [215, 470], [250, 505], [270, 550], [285, 620], [300, 700], [300, 800], [-160, 800]],
-        face: 0.28, snowDepth: 140, cover: 0.6, ledges: 0.5, peek: 0.5, fade: [720, 800] },
+        face: 0.52, facetBlur: 2, snowDepth: 240, cover: 0.6, ledges: 0, cun: 0.8, rough: 12, pines: [[30, 470, 58, -10, -0.4], [160, 490, 52, 6, 0.4], [40, 575, 66, -6, -0.3], [130, 610, 58, 8, 0.4], [210, 565, 62, 10, 0.6], [80, 690, 56, -4, 0.2], [235, 665, 50, 12, 0.7], [-10, 640, 52, -8, -0.5]], peek: 0.5, fade: [720, 800] },
       // big snowy slope bottom left
-      { poly: [[-160, 720], [-60, 712], [40, 712], [140, 718], [230, 725], [300, 735], [360, 748], [420, 762], [460, 790], [470, 860], [480, 1000], [490, 1200], [-160, 1200]],
-        face: 0.26, snowDepth: 120, cover: 0.6, ledges: 0.4, peek: 0.5 },
+      { poly: [[-160, 705], [-60, 690], [40, 708], [140, 694], [230, 718], [300, 728], [360, 746], [420, 762], [460, 790], [470, 860], [480, 1000], [490, 1200], [-160, 1200]],
+        face: 0.42, facetBlur: 2, snowDepth: 120, cover: 0.6, ledges: 0, cun: 0.8, pines: [[120, 760, 62, -6, -0.3], [300, 790, 54, 6, 0.4]], peek: 0.5 },
       { poly: [[-160, 830], [0, 836], [110, 860], [190, 900], [235, 960], [255, 1060], [262, 1200], [-160, 1200]],
-        face: 0.3, snowDepth: 260, cover: 0.6, ledges: 0.3, peek: 0.5 },
+        face: 0.3, snowDepth: 260, cover: 0.6, ledges: 0, peek: 0.5 },
       // dark pillar bottom right of the slope
       { poly: [[466, 835], [520, 815], [570, 828], [610, 858], [640, 900], [652, 1000], [662, 1200], [466, 1200]],
-        face: 0.22, snowDepth: 22, cover: 0.5, ledges: 0.5, fade: [1000, 1130], pines: [[540, 905, 100, -4, 0.6]] },
+        face: 0.26, snowDepth: 22, cover: 0.5, ledges: 0, cun: 1, settle: SETTLE, fade: [1000, 1130], pines: [[540, 905, 100, -4, 0.6]] },
     ], { seed: 7 });
     layers.push(api.tex(leftRock.src, { rect: leftRock.rect, z: 1.15 }));
     tm('leftrock');
     // two larger snow pines on the left cliff, as their own swaying cards
-    const pineOpts = { gnarl: 0.7, snow: 0.95, paper: PAPER_COOL, padDensity: 2.6, haze: 0.15, needles: 10, fanSpacing: 0.9, swayAmp: 2, swayFreq: 0.2, caps: { cap: 13, mound: 7, blur: 8 } };
+    const pineOpts = { gnarl: 0.7, snow: 0.95, paper: PAPER_COOL, padDensity: 2.6, haze: 0.15, needles: 10, fanSpacing: 0.9, swayAmp: 2, swayFreq: 0.2, ink: { bleed: 0.2, edge: 0.3 }, fans: { fanR: 2.1, needles: 24, needleWidth: 0.075, fanStep: 0.7, backTone: 0.45 }, caps: { cap: 20, mound: 12, blur: 10, pokeV: 0.55 } };
     const pA = makePine(api, { ...pineOpts, seed: 61, x: 268, y: 610, height: 150, lean: 30, bend: 50, reach: 0.85, padSize: 62, needle: 8, trunkWidth: 13 });
     const pB = makePine(api, { ...pineOpts, seed: 62, x: 432, y: 800, height: 190, lean: -8, bend: 70, reach: 0.9, padSize: 74, needle: 9, trunkWidth: 17 });
     const pC = makePine(api, { ...pineOpts, seed: 63, x: 70, y: 500, height: 120, lean: -12, bend: -40, reach: -0.5, padSize: 52, needle: 7, trunkWidth: 11 });
@@ -177,7 +184,9 @@ export default {
         { pts: [[152, 44], [200, 20], [250, 12]], w: 10, subs: 1 },
         { pts: [[300, 180], [330, 230], [372, 268], [420, 292]], w: 8, subs: 1 },
       ],
-      padSize: 104, needle: 13, padDensity: 2.0, haze: 0.2, wet: 0.25, under: 0.9, needleWidth: 0.15, needles: 11, fanSpacing: 0.9, swayAmp: 3, swayFreq: 0.18, caps: { cap: 26, mound: 13, blur: 12, freq: 0.03, bumps: 0.07, lobes: 0.7, flat: [0.1, 0.6] },
+      padSize: 90, needle: 13, padDensity: 1.35, haze: 0, wet: 0.45, under: 0.9, needleWidth: 0.11, needles: 13, fanSpacing: 1.0, core: 0.15, soft: 0.55, barkTone: 0.42, swayAmp: 3, swayFreq: 0.18, fans: { fanR: 2.3, needles: 28, needleWidth: 0.07, fanStep: 0.7, backTone: 0.45 },
+      caps: { cap: 26, mound: 21, blur: 12, freq: 0.03, bumps: 0.07, lobes: 0.9, flat: [0.1, 0.6], pokeV: 0.55 },
+      ink: { bleed: 0.2, edge: 0.3 },
     });
     layers.push(pine.layer({ z: 1 }));
     layers.push(snow[3], snow[4]);

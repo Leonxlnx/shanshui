@@ -11,20 +11,21 @@ function leaf(ctx, x, y, ang, len, wid) {
   ctx.fill();
 }
 
-function rosette(ctx, x, y, r, rng, col, alpha, n) {
-  const a0 = rng() * Math.PI * 2;
-  for (let i = 0; i < n; i++) {
-    const a = a0 + (i / n) * Math.PI * 2 + (rng() - 0.5) * 0.6;
-    const len = r * (0.7 + rng() * 0.6);
-    ctx.fillStyle = rgba(col, alpha * (0.9 + rng() * 0.1));
-    const off = r * (0.25 + rng() * 0.25);
-    const cx = x + Math.cos(a) * off, cy = y + Math.sin(a) * off;
-    ctx.beginPath(); ctx.ellipse(cx + Math.cos(a) * len * 0.3, cy + Math.sin(a) * len * 0.3, len * 0.42, len * (0.24 + rng() * 0.1), a, 0, Math.PI * 2); ctx.fill();
+// loose cluster of small pointed leaf dabs around (x, y): no centre, leaves scattered in a disc,
+// pointing roughly outward, each dab a tapered teardrop of varying grey
+function rosette(ctx, x, y, r, rng, col, alpha, n, paper) {
+  const m = n + 2 + ((rng() * 4) | 0);
+  for (let i = 0; i < m; i++) {
+    const a = rng() * Math.PI * 2, d = Math.sqrt(rng()) * r * 1.3;
+    const cx = x + Math.cos(a) * d, cy = y + Math.sin(a) * d * 0.8;
+    const dir = a + (rng() - 0.5) * 1.6 - 0.4;
+    const len = r * (0.7 + rng() * 0.5);
+    const f = paper && rng() < 0.15 ? 0.2 + rng() * 0.3 : 0;
+    const c = f ? col.map((v, k) => v + (paper[k] - v) * f) : col;
+    ctx.fillStyle = rgba(c, alpha * (0.75 + rng() * 0.25));
+    leaf(ctx, cx - Math.cos(dir) * len * 0.4, cy - Math.sin(dir) * len * 0.4, dir, len, len * (0.5 + rng() * 0.25));
   }
-  ctx.fillStyle = rgba(col, alpha);
-  ctx.beginPath(); ctx.arc(x, y, r * 0.3, 0, Math.PI * 2); ctx.fill();
 }
-
 // base (x, y), overall height h, opts: tone (0 ink..1 paper), paper, spread (deg), lean (deg), stems, leaf (size px), density
 export function paintShrub(ctx, x, y, h, rng, o = {}) {
   const paper = o.paper;
@@ -32,14 +33,14 @@ export function paintShrub(ctx, x, y, h, rng, o = {}) {
   const stems = o.stems ?? 5 + ((rng() * 4) | 0);
   const spread = (o.spread ?? 55) * Math.PI / 180;
   const lean = (o.lean ?? 0) * Math.PI / 180;
-  const ls = o.leaf ?? Math.max(4, h * 0.075);
+  const ls = o.leaf ?? Math.max(5, h * 0.085);
   const dens = o.density ?? 1;
   ctx.lineCap = 'round';
   for (let s = 0; s < stems; s++) {
     const a = -Math.PI / 2 + lean + (rng() * 2 - 1) * spread;
     const L = h * (0.5 + rng() * 0.5);
     const bend = (rng() - 0.5) * 0.5;
-    const col = tone(Math.min(1, tn + rng() * 0.12), paper);
+    const col = tone(Math.min(1, tn + Math.pow(rng(), 2) * 0.2), paper);
     const pts = [];
     for (let i = 0; i <= 6; i++) {
       const t = i / 6;
@@ -51,7 +52,7 @@ export function paintShrub(ctx, x, y, h, rng, o = {}) {
     ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.stroke();
     // rosettes at the tip and along the upper stem, with short side twigs
     const tip = pts[6];
-    rosette(ctx, tip[0], tip[1], ls * (0.9 + rng() * 0.4), rng, col, 0.95, 4 + ((rng() * 3) | 0));
+    rosette(ctx, tip[0], tip[1], ls * (0.9 + rng() * 0.4), rng, col, 0.92, 4 + ((rng() * 3) | 0), paper);
     const extra = Math.round((1 + rng() * 2.5) * dens);
     for (let k = 0; k < extra; k++) {
       const p = pts[2 + ((rng() * 4) | 0)];
@@ -59,7 +60,7 @@ export function paintShrub(ctx, x, y, h, rng, o = {}) {
       const sl = ls * (1 + rng() * 1.5);
       const q = [p[0] + Math.cos(sa) * sl, p[1] + Math.sin(sa) * sl];
       ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
-      rosette(ctx, q[0], q[1], ls * (0.65 + rng() * 0.4), rng, col, 0.92, 3 + ((rng() * 3) | 0));
+      rosette(ctx, q[0], q[1], ls * (0.65 + rng() * 0.4), rng, col, 0.88, 3 + ((rng() * 3) | 0), paper);
     }
   }
 }

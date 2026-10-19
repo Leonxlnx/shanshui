@@ -13,9 +13,9 @@ uniform vec4 uS1[6];   // hw1, lean, column width, seed
 uniform vec4 uS2[6];   // fade start (v), lip, brightness, recess
 uniform int uN;
 uniform vec4 uRect;
-const vec3 ICE_W = vec3(0.965, 0.97, 0.972);
-const vec3 ICE_B = vec3(0.66, 0.705, 0.75);
-const vec3 ICE_D = vec3(0.43, 0.48, 0.54);
+const vec3 ICE_W = vec3(0.975, 0.975, 0.972);
+const vec3 ICE_B = vec3(0.76, 0.785, 0.805);
+const vec3 ICE_D = vec3(0.5, 0.53, 0.565);
 vec4 shade(vec2 q, vec2 uv) {
   vec2 p = q + uRect.xy;
   vec4 acc = vec4(0.0);
@@ -38,12 +38,12 @@ vec4 shade(vec2 q, vec2 uv) {
     // back sheet: blue-grey ice with vertical streaks behind the columns
     float sst = streaks(p * 0.06 + sd * 2.0, vec2(0.0, 1.0), 9.0, 3);
     float sheetA = edge * smoothstep(-0.02, 0.03, v) * (1.0 - smoothstep(0.5, 0.95, v + 0.25 * snoise(vec2(p.x * 0.03, sd + 1.0))));
-    vec3 sheet = mix(ICE_D, ICE_B * 1.1, clamp(0.55 + 0.45 * sst - 0.25 * max(u, 0.0), 0.0, 1.0));
+    vec3 sheet = mix(ICE_D, ICE_B * 1.08, clamp(0.65 + 0.4 * sst - 0.25 * max(u, 0.0), 0.0, 1.0));
     vec4 col = vec4(sheet * sheetA, sheetA);
     for (int layer = 0; layer < 2; layer++) {
       float lw = cw * (layer == 0 ? 1.6 : 1.0);
       float c0 = xw / lw + (layer == 0 ? 0.37 : 0.0);
-      float c = c0 + 0.3 * snoise(vec2(c0 * 0.33, sd + 20.0 + float(layer)));
+      float c = c0 + 0.45 * snoise(vec2(c0 * 0.33, sd + 20.0 + float(layer)));
       float ic = floor(c), fc = fract(c);
       float h = hash12(vec2(ic, sd + float(layer) * 13.0));
       float h2 = hash12(vec2(ic * 1.7 + 3.0, sd + 5.0));
@@ -52,9 +52,11 @@ vec4 shade(vec2 q, vec2 uv) {
       float cl = 0.5 + 0.5 * snoise(vec2(ic * 0.35, sd + float(layer)));
       float yb = A.y + len * mix(layer == 0 ? 0.6 : 0.25, 1.0, clamp(0.55 * cl + 0.6 * pow(h, 1.5), 0.0, 1.0));
       float tip = lw * (1.4 + 3.0 * h2);
-      float bul = 0.12 * sin(p.y * (0.03 + 0.04 * h) + h2 * 20.0) + 0.06 * snoise(vec2(ic, p.y * 0.04));
-      float wprof = clamp((yb - p.y) / tip, 0.0, 1.0);
-      float halfw = (0.34 + 0.22 * h3) * sqrt(wprof) * (0.95 + bul);
+      float bul = 0.2 * sin(p.y * (0.018 + 0.03 * h) + h2 * 20.0) + 0.1 * snoise(vec2(ic, p.y * 0.03));
+      float cone = clamp((yb - p.y) / max(1.0, yb - y0c), 0.0, 1.0);
+      float wprof = mix(clamp((yb - p.y) / tip, 0.0, 1.0), pow(cone, 1.4), 0.55);
+      float tb = pow(0.5 + 0.5 * sin((p.y - A.y) * (0.03 + 0.03 * h3) + h * 6.283), 3.0);
+      float halfw = (0.32 + 0.2 * h3) * sqrt(wprof) * (0.9 + bul + 0.32 * tb);
       // just under the lip the columns merge into a bulging white mound
       float mv = v + 0.05 * snoise(vec2(p.x * 0.05, sd + 30.0));
       float mg = (1.0 - smoothstep(0.05, 0.15, mv)) * min(C.y, 1.0);
@@ -65,13 +67,14 @@ vec4 shade(vec2 q, vec2 uv) {
       float s = dxc / max(halfw, 0.05);          // -1 lit side .. 1 shadow side
       float st = streaks(vec2(p.x * 0.5, p.y) * 0.08 + sd + float(layer) * 3.0, vec2(0.0, 1.0), 7.0, 3);
       float band = 0.5 + 0.5 * sin(p.y * 0.08 + h * 30.0 + 2.0 * snoise(vec2(ic, p.y * 0.02)));
-      float lum = 0.88 + 0.12 * (1.0 - smoothstep(-0.2, 0.9, s)) + 0.16 * (st - 0.5) + 0.07 * (band - 0.5);
-      lum -= 0.5 * smoothstep(0.4, 1.0, s) * (1.0 - mg);
+      float lum = 0.92 + 0.1 * (1.0 - smoothstep(-0.2, 0.9, s)) + 0.2 * (st - 0.5) + 0.06 * (band - 0.5);
+      lum -= 0.34 * smoothstep(0.35, 1.0, s) * (1.0 - mg);
       lum -= 0.2 * smoothstep(0.07, 0.14, mv) * (1.0 - smoothstep(0.15, 0.24, mv));   // mound underside
       lum *= (layer == 0 ? 0.86 : 1.0) * C.z;
       lum -= 0.2 * smoothstep(0.55, 1.0, abs(u)) * step(0.0, u);
+      lum -= 0.12 * (1.0 - tb) * smoothstep(0.2, 0.9, abs(s));
       vec3 ice = mix(ICE_B, ICE_W, clamp(lum, 0.0, 1.0));
-      ice = mix(ice, ICE_D, 0.5 * smoothstep(0.78, 1.0, s) * smoothstep(0.05, 0.25, halfw));
+      ice = mix(ice, ICE_D, 0.5 * smoothstep(0.75, 1.0, s) * smoothstep(0.05, 0.25, halfw));
       col = vec4(ice * inC, inC) + col * (1.0 - inC);
     }
     // dark wet rock in the recess behind the curtain

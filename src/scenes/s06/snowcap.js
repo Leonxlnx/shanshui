@@ -122,18 +122,25 @@ export function snowCaps(cv, k, o = {}) {
   const rv = Math.max(1, Math.round(0.8 * k));
   const Sb = boxV(boxV(boxH(boxH(S, W, H, rs), W, H, rs), W, H, rv), W, H, rv);
   const Vb = boxV(boxH(V, W, H, rs), W, H, Math.max(1, Math.round(0.6 * k)));
-  const top = o.color ?? [250, 250, 248], under = o.under ?? [190, 196, 204], rim = o.rim ?? [222, 225, 229];
+  const top = o.color ?? [250, 250, 248], under = o.under ?? [198, 201, 205], rim = o.rim ?? [222, 225, 229];
   const ga = o.alpha ?? 1;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
-      const s = sstep(0.32, 0.62, Sb[i]) * ga;
+      // painted, not cut: the edge threshold wanders with a brush-grain texture (dry ragged rims)
+      const xd = x / k, yd = y / k;
+      const tex = n1(xd * 0.23 + yd * 0.06 + 11) * 0.55 + n3(yd * 0.27 - xd * 0.05 + 23) * 0.45 - 0.5;
+      const sh0 = (o.ragged ?? 0.14) * tex;
+      let s = sstep(0.3 + sh0, 0.6 + sh0, Sb[i]) * ga;
       if (s <= 0.003) continue;
       const v = Vb[i];
-      const sh = sstep(0.3, 1.0, v) * (0.7 + 0.6 * n2(x / k * 0.05 + y / k * 0.03 + 30));
+      // needles poke through the lower part of the cap: dark strokes stay visible there
+      const j0 = i * 4, Lo = (0.3 * d[j0] + 0.59 * d[j0 + 1] + 0.11 * d[j0 + 2]) / 255 * (d[j0 + 3] / 255) + (1 - d[j0 + 3] / 255);
+      s *= 1 - (o.poke ?? 0.8) * sstep(o.pokeV ?? 0.4, 0.95, v) * sstep(0.45, 0.15, Lo);
+      const sh = Math.min(1, sstep(0.35, 1.0, v) * (0.65 + 0.6 * n2(xd * 0.05 + yd * 0.03 + 30)) + 0.12 * tex * sstep(0.1, 0.5, v));
       const edge = 1 - sstep(0.62, 0.95, Sb[i]);     // faint cool line where the cap meets the paper
       let r = top[0] + (under[0] - top[0]) * sh, gg = top[1] + (under[1] - top[1]) * sh, b = top[2] + (under[2] - top[2]) * sh;
-      const e = edge * 0.55 * (1 - sh);
+      const e = edge * (o.rimAmt ?? 0.15) * (1 - sh);
       r += (rim[0] - r) * e; gg += (rim[1] - gg) * e; b += (rim[2] - b) * e;
       const j = i * 4, sa = d[j + 3] / 255;
       const oa = s + sa * (1 - s);
@@ -146,6 +153,52 @@ export function snowCaps(cv, k, o = {}) {
   g.putImageData(img, 0, 0);
 }
 
+// Open needle clusters for snow pines: a few fans per pad, needles radiating sideways and
+// down from small dark knots, so paper shows between the strokes and the snow cushion that
+// settles on top hides the upper half (ref 06), instead of the library's solid claw pads.
+function rng1(seed) { let s = (seed * 2654435761) >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
+function needleFan(g, x, y, R, n, w, col, a, rng) {
+  g.strokeStyle = col;
+  g.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    const up = rng() < 0.18;
+    const an = up ? (rng() < 0.5 ? -0.15 - rng() * 0.6 : Math.PI + 0.15 + rng() * 0.6) : -0.05 + rng() * (Math.PI + 0.1);
+    const L = R * (up ? 0.45 + rng() * 0.35 : 0.6 + rng() * 0.6);
+    const sx = x + (rng() - 0.5) * R * 0.2, sy = y + (rng() - 0.5) * R * 0.12;
+    const ex = sx + Math.cos(an) * L, ey = sy + Math.sin(an) * L * 0.8;
+    g.globalAlpha = a * (0.65 + rng() * 0.35);
+    g.lineWidth = w * (0.7 + rng() * 0.6);
+    g.beginPath(); g.moveTo(sx, sy); g.quadraticCurveTo((sx + ex) / 2 + (rng() - 0.5) * L * 0.15, (sy + ey) / 2 - L * 0.05, ex, ey); g.stroke();
+  }
+  g.globalAlpha = 1;
+}
+function paintFanPads(g, T, o) {
+  const rng = rng1((o.seed ?? 1) * 77 + 5);
+  const R = (o.needle ?? T.R0 ?? 12) * (o.fanR ?? 1.15);
+  const ink = o.inkRGB ?? [16, 15, 15];
+  const css = (v) => `rgb(${Math.round(ink[0] + (232 - ink[0]) * v)},${Math.round(ink[1] + (228 - ink[1]) * v)},${Math.round(ink[2] + (222 - ink[2]) * v)})`;
+  const pads = [...(T.ghosts || []).map((p) => ({ ...p, ghost: true })), ...T.pads];
+  pads.sort((a, b) => (b.back || b.ghost ? 1 : 0) - (a.back || a.ghost ? 1 : 0));
+  for (const p of pads) {
+    const back = p.back || p.ghost;
+    const tone = back ? (o.backTone ?? 0.5) : 0.02;
+    const nf = Math.max(2, Math.round(p.w / (R * (o.fanStep ?? 0.95))));
+    const rows = back ? 1 : (o.rows ?? 2);
+    for (let i = 0; i < nf * rows; i++) {
+      const row = i % rows, ii = Math.floor(i / rows) + row * 0.5;
+      const e = nf === 1 ? 0 : Math.min(1, (ii / (nf - 1)) * 2 - 1);
+      const x = p.x + e * p.w * (0.42 - row * 0.08) + (rng() - 0.5) * R * 0.35;
+      const y = p.y - p.h * 0.18 * (1 - e * e) + row * R * 0.3 + (rng() - 0.5) * R * 0.3;
+      const r = R * (0.75 + rng() * 0.4) * (1 - 0.25 * Math.abs(e));
+      g.fillStyle = css(tone);
+      g.globalAlpha = back ? 0.6 : 0.95;
+      g.beginPath(); g.ellipse(x, y + r * 0.1, r * 0.3, r * 0.15, 0, 0, Math.PI * 2); g.fill();
+      needleFan(g, x, y, r, Math.round((o.needles ?? 14) * (0.8 + rng() * 0.4)), Math.max(0.8, r * (o.needleWidth ?? 0.07)), css(tone + rng() * 0.08), back ? 0.55 : 0.95, rng);
+    }
+  }
+  g.globalAlpha = 1;
+}
+
 // makePine with snow caps instead of the library's snow cushions
 export function makeSnowPine(api, o = {}) {
   const T = buildPine(o);
@@ -154,7 +207,10 @@ export function makeSnowPine(api, o = {}) {
   const rect = [Math.floor(bx1 - m), Math.floor(by1 - m), Math.ceil(bx2 - bx1 + 2 * m), Math.ceil(by2 - by1 + 2 * m)];
   let src = api.bakeCanvas(rect[2], rect[3], (ctx, { k }) => {
     ctx.translate(-rect[0], -rect[1]);
-    paintPine(ctx, { ...o, snow: 0, backTone: o.backTone ?? 0.55, under: o.under ?? 1.4, tree: T });
+    if (o.fans) {
+      paintPine(ctx, { ...o, snow: 0, wet: 0, tree: { ...T, pads: [], ghosts: [] } });
+      paintFanPads(ctx, T, o.fans === true ? o : { ...o, ...o.fans });
+    } else paintPine(ctx, { ...o, snow: 0, backTone: o.backTone ?? 0.55, under: o.under ?? 1.4, tree: T });
     snowCaps(ctx.canvas, k, { seed: (o.seed ?? 1) * 3 + 1, ...(o.caps || {}) });
   }, { scale: o.scale ?? 1 });
   const inked = inkify(api, src, { edge: 0.4, granulation: 0.1, bleed: 0.8, seed: (o.seed ?? 1) % 17, ...(o.ink || {}) });

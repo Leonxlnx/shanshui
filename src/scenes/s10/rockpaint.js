@@ -347,3 +347,21 @@ export function bakeS08Rocks(api, rect, rocks, { paper = PAPER, scale = 1 } = {}
   }, { scale });
   return { src, rect, info };
 }
+
+// (s10) wet foliage: the clumps are painted on their own layer and bled together (blur) into soft
+// wet-ink masses, then a sparse set of crisp dots goes on top (avoids the stamped look of equal dabs).
+export function paintFoliageWet(ctx, outline, opts = {}) {
+  const wet = opts.wet ?? 2.2;
+  const k = ctx.getTransform().a || 1;
+  const c = new OffscreenCanvas(ctx.canvas.width, ctx.canvas.height);
+  const g = c.getContext('2d');
+  g.setTransform(ctx.getTransform());
+  paintFoliage(g, outline, opts);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.filter = `blur(${(wet * k).toFixed(2)}px)`;
+  ctx.drawImage(c, 0, 0);
+  ctx.filter = 'none';
+  ctx.restore();
+  paintFoliage(ctx, outline, { ...opts, seed: (opts.seed ?? 1) + 500, density: (opts.density ?? 1) * (opts.crisp ?? 0.3), size: (opts.size ?? 1) * 0.8 });
+}

@@ -9,49 +9,109 @@ const ROCK_FS = /* glsl */ `
 uniform sampler2D uF;
 uniform vec4 uRect;
 uniform vec3 uPaperC, uInkC;
-uniform vec4 uLook;   // face tone (0 ink..1 paper), crown strength, texture amount, speckle
-uniform vec4 uLook2;  // cun amount, edge raggedness, seed, far (0..1 flatten)
+uniform vec4 uLook;   // face tone (0 ink..1 paper), crown strength, blotch amount, speckle
+uniform vec4 uLook2;  // cun density, edge raggedness, seed, far (0..1 flatten)
+uniform vec4 uLook3;  // stroke angle (rad, 0 = vertical), stroke scale, moss dots, dryness
+uniform vec4 uLook4;  // blotch anisotropy, stroke angle jitter, blotch scale, stroke darkness
+
+vec3 fieldAt(vec2 p) { return texture(uF, (p - uRect.xy) / uRect.zw).rgb; }
+
+// cun: tapered dry-brush strokes scattered on a jittered grid in stroke space. Each stroke is
+// pressed (blunt start), tapers to a tip, bends slightly and opens into bristle gaps (flying white).
+float cun(vec2 p, float sd) {
+  float ang = uLook3.x, sc = uLook3.y;
+  float ca = cos(ang), sa = sin(ang);
+  mat2 R = mat2(ca, sa, -sa, ca);
+  vec2 q = R * p;
+  vec2 cell = vec2(8.5, 115.0) * sc;
+  vec2 id = floor(q / cell);
+  float acc = 0.0;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    vec2 c = id + vec2(float(i), float(j));
+    vec2 h2 = hash22(c + sd);
+    float h3 = hash12(c * 1.37 + sd * 2.1);
+    float h4 = hash12(c * 0.71 + sd * 3.3 + 9.1);
+    vec2 ctr = (c + vec2(0.5) + (h2 - 0.5) * vec2(0.9, 0.8)) * cell;
+    vec3 Fc = fieldAt(transpose(R) * ctr);
+    float want = uLook2.x * (0.3 + 0.55 * Fc.g - 0.3 * Fc.b) * step(0.5, Fc.r);
+    if (h4 > want) continue;
+    float len = cell.y * (0.5 + 0.95 * h3);
+    float t = (q.y - ctr.y) / len + 0.5;
+    if (t < 0.0 || t > 1.0) continue;
+    float w = sc * (1.4 + 5.0 * h2.x * h2.x);
+    float bend = (h3 - 0.5) * 4.0 * sc;
+    float off = bend * (1.0 - (2.0 * t - 1.0) * (2.0 * t - 1.0)) + (q.y - ctr.y) * (hash12(c * 2.3 + sd) - 0.5) * uLook4.y + snoise(vec2(q.y / 40.0, h4 * 40.0)) * 0.7 * sc;
+    float wid = w * (0.75 + 0.25 * smoothstep(0.0, 0.08, t)) * (1.0 - 0.8 * pow(t, 1.6));
+    float dd = abs(q.x - ctr.x - off);
+    float core = h3 > 0.62 ? 1.0 - smoothstep(wid * 0.15, wid * 1.2, dd) : 1.0 - smoothstep(wid * 0.5, wid, dd);
+    float br = vnoise(vec2((q.x - ctr.x - off) / (0.75 * sc) + h3 * 37.0, q.y / (28.0 * sc)));
+    float g = mix(0.1, 0.72, pow(t, 1.3) * uLook3.w) + 0.08;
+    float ink = smoothstep(g, g + 0.14, br) * smoothstep(0.0, 0.025, t);
+    acc = max(acc, core * ink * (0.45 + 0.55 * h2.y));
+  }
+  return acc;
+}
+
+// dian: moss dots, clustered where the crown / shadow field is strong
+float dots(vec2 p, float sd) {
+  vec2 cs = vec2(10.0);
+  vec2 id = floor(p / cs);
+  float acc = 0.0;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+    vec2 c = id + vec2(float(i), float(j));
+    vec2 ctr = (c + 0.15 + 0.7 * hash22(c + sd * 1.9)) * cs;
+    vec3 Fc = fieldAt(ctr);
+    float want = uLook3.z * smoothstep(0.22, 0.6, Fc.g) * 0.8 * step(0.55, Fc.r);
+    if (hash12(c + sd * 4.7) > want) continue;
+    float r = 1.2 + 3.4 * pow(hash12(c * 1.9 + sd), 2.0);
+    vec2 dv = (p - ctr) * vec2(0.78, 1.2);
+    float dist = length(dv) + snoise(p / 1.7 + sd) * 0.45;
+    acc = max(acc, (1.0 - smoothstep(r * 0.55, r, dist)) * (0.65 + 0.35 * hash12(c + 1.3)));
+  }
+  return acc;
+}
+
 vec4 shade(vec2 q, vec2 uv) {
   vec2 p = q + uRect.xy;
   vec3 F = texture(uF, uv).rgb;
   float sd = uLook2.z * 17.3;
-  float n1 = fbm(p / 70.0 + sd, 4);
-  float n2 = fbm(p / 18.0 + sd * 1.7, 3);
-  float rag = (n2 * 0.6 + snoise(p / 5.0 + sd) * 0.4) * uLook2.y;
+  float rag = (fbm(p / 18.0 + sd * 1.7, 3) * 0.6 + snoise(p / 5.0 + sd) * 0.4) * uLook2.y;
   float a = smoothstep(0.38, 0.62, F.r + rag * 0.35);
   if (a <= 0.002) return vec4(0.0);
-  // wet washes: a warped field, cut into tiers with soft edges and pooled rims (wet-in-wet ink)
   float face = 1.0 - uLook.x;
   vec2 w = vec2(fbm(p / 140.0 + sd, 3), fbm(p / 140.0 + sd + 5.2, 3));
-  float W = fbm(p / 48.0 + w * 1.4 + sd * 0.7, 5) * 0.5 + 0.5;
+  float W = fbm(p / 60.0 + w * 1.4 + sd * 0.7, 4) * 0.5 + 0.5;
   float W2 = fbm(p / 16.0 + w * 2.0 + sd * 1.3, 3) * 0.5 + 0.5;
   // region: 0 lit plane .. 1 deep shadow / crown
-  float region = clamp(face + (W - 0.5) * 0.45 * uLook.z - F.b * 0.8 + F.g * 0.35, 0.0, 1.0);
-  // 1. soft broad wash with large mottling
-  float d = mix(0.20, 0.80, region) + (W2 - 0.5) * 0.10 + fbm(p / 30.0 + sd * 3.1, 3) * 0.10;
-  // 2. large soft dark patches where the region is dark
-  float bf = fbm(p / 46.0 + w * 0.3 + sd * 1.9, 4) * 0.5 + 0.5;
-  float th = 0.86 - 0.42 * region;
-  float B = smoothstep(th - 0.07, th + 0.05, bf);
-  d = mix(d, 0.9, B * 0.75 * uLook.z);
-  // 3. crown / shadow-plane ink: crisp blobby edge from the G field
-  float cf = F.g * uLook.y + fbm(p / 13.0 + sd * 0.9, 3) * 0.22 + (0.4 - worley(p / 16.0 + sd)) * 0.12;
-  float Cr = smoothstep(0.42, 0.50, cf);
-  d = mix(d, 0.93 + 0.05 * W2, Cr);
-  // 4. vertical cun streaks in the mid tones, dry hemp strokes in the lit planes
-  // long vertical fissure strokes: ridges of a vertically stretched warped noise, broken in places
-  float wx = p.x + 10.0 * snoise(vec2(p.x / 60.0, p.y / 90.0) + sd);
-  float rid = 1.0 - abs(snoise(vec2(wx / 15.0, p.y / 420.0) + sd * 1.3));
-  float rid2 = 1.0 - abs(snoise(vec2(wx / 6.0, p.y / 160.0) + sd * 2.1));
-  float brk2 = smoothstep(-0.5, 0.2, snoise(vec2(p.x / 40.0, p.y / 140.0) + sd * 0.7));
-  float fiss = smoothstep(0.86, 0.96, rid) * brk2 + smoothstep(0.9, 0.97, rid2) * 0.45 * brk2;
-  d = mix(d, 0.82, clamp(fiss * uLook2.x * 0.55, 0.0, 1.0) * (1.0 - Cr));
-  float hemp = streaks(p * vec2(0.05, 0.012) * mat2(0.8, -0.6, 0.6, 0.8) + sd, vec2(0.0, 1.0), 7.0, 4);
-  d += uLook2.x * 0.4 * smoothstep(0.35, 0.8, hemp) * F.b;
-  // 5. sparse paper flecks inside the dark ink
+  float region = clamp(face + (W - 0.5) * 0.35 - F.b * 0.75 + F.g * 0.45, 0.0, 1.0);
+  // 1. pale base wash, gently uneven
+  float d = mix(0.08, 0.55, region) + fbm(p / 26.0 + sd * 3.1, 3) * 0.06;
+  // 2. wet blotches: a broad warped field, dragged along the brush direction, cut into soft-edged
+  //    ink pools that darken toward their centre, feathered edges and a faint grey bleed halo
+  float ca = cos(uLook3.x), sa = sin(uLook3.x);
+  vec2 qs = mat2(ca, sa, -sa, ca) * p;
+  float bf = fbm(qs / (vec2(48.0, 48.0 * uLook4.x) * uLook4.z) + w * 0.45 + sd * 1.9, 3) * 0.5 + 0.5 + fbm(p / 6.0 + sd, 2) * 0.025;
+  float th = mix(0.68, 0.40, region) + (1.0 - uLook.z) * 0.14;
+  float inB = smoothstep(th - 0.09, th + 0.08, bf);
+  float halo = smoothstep(th - 0.12, th - 0.04, bf) * (1.0 - inB);
+  float bd = 0.6 + clamp(bf - th, 0.0, 0.2) * 1.5 + (W2 - 0.5) * 0.14;
+  d = mix(d, max(d, clamp(bd, 0.0, 0.93)), inB) + halo * 0.08;
+  // vertical drag texture inside the wash (bristle streaks of a wide wet brush)
+  float drag = fbm(qs / vec2(14.0, 160.0) + w * 0.5 + sd * 2.9, 3);
+  d += drag * 0.1 * smoothstep(0.05, 0.5, d) * uLook.z;
+  // 3. crown: wet ink under the top contour, blotchy broken lower edge
+  float cf = F.g * uLook.y + (bf - 0.5) * 0.55 + fbm(p / 9.0 + sd, 2) * 0.08;
+  float Cr = smoothstep(0.5, 0.66, cf);
+  d = mix(d, 0.9 + 0.06 * W2, Cr);
+  // 4. cun strokes and moss dots
+  d = max(d, cun(p, sd) * uLook4.w);
+  d = max(d, dots(p, sd) * 0.95);
+  // 5. paper flecks inside dark ink, pigment granulation
   float g2 = vnoise(p * 0.5 + sd) * 0.6 + vnoise(p * 1.25 + sd * 1.7) * 0.4;
-  float speck = smoothstep(0.70, 0.76, g2) * smoothstep(0.5, 0.8, fbm(p / 40.0 + sd * 4.1, 2) * 0.5 + 0.5 + 0.15);
-  d -= speck * uLook.w * 0.5 * smoothstep(0.6, 0.9, d);  d = mix(d, face, uLook2.w);
+  float speck = smoothstep(0.70, 0.76, g2) * smoothstep(0.5, 0.8, fbm(p / 40.0 + sd * 4.1, 2) * 0.5 + 0.65);
+  d -= speck * uLook.w * 0.45 * smoothstep(0.6, 0.9, d);
+  d *= 0.95 + 0.1 * vnoise(p * 0.6 + sd * 2.3);
+  d = mix(d, face, uLook2.w);
   d = clamp(d, 0.0, 1.0);
   vec3 col = mix(uPaperC, uInkC, d);
   return vec4(col * a, a);
@@ -136,12 +196,12 @@ export function makeRocks(api, { rect, items, paper, ink = [12, 10, 8], look = {
       ctx.restore();
     });
   }, { scale });
-  const L = { tone: 0.5, crown: 0.9, texture: 1, speckle: 1, cun: 1, rag: 1, far: 0, ...look };
+  const L = { tone: 0.5, crown: 0.9, texture: 1, speckle: 1, cun: 1, rag: 1, far: 0, angle: 0, stroke: 1, dots: 0.5, dry: 0.8, aniso: 2.5, jitter: 0.15, blotch: 1, ink: 0.85, ...look };
   const src = api.bakeShader(rw, rh, ROCK_FS, {
     scale,
     uniforms: {
       uF: fld, uRect: rect, uPaperC: paper.map((v) => v / 255), uInkC: ink.map((v) => v / 255),
-      uLook: [L.tone, L.crown, L.texture, L.speckle], uLook2: [L.cun, L.rag, seed * 0.37 % 7, L.far],
+      uLook: [L.tone, L.crown, L.texture, L.speckle], uLook2: [L.cun, L.rag, seed * 0.37 % 7, L.far], uLook3: [L.angle, L.stroke, L.dots, L.dry], uLook4: [L.aniso, L.jitter, L.blotch, L.ink],
     },
   });
   if (api.engine && api.engine.freeTex) api.engine.freeTex(fld);

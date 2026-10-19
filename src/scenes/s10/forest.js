@@ -29,7 +29,10 @@ export function paintSlope(ctx, s) {
   const rng = makeRng('s10slope:' + seed);
   const nz = makeNoise('s10slope-n:' + seed);
   const paper = s.paper || PAPER;
-  const top = sampler(s.contour);
+  const top0 = sampler(s.contour);
+  // (s10) jagged crest: the smooth contour is broken by ridged noise (rock outcrops, tree clumps)
+  const jag = s.jag ?? 8;
+  const top = jag > 0 ? (x) => top0(x) - jag * (Math.abs(nz.n2(x / 55, 3.7)) * 0.75 + Math.abs(nz.n2(x / 17, 9.1)) * 0.35 - 0.35) : top0;
   const xs = s.contour.map((p) => p[0]);
   const X0 = Math.min(...xs), X1 = Math.max(...xs);
   const base = s.base;
@@ -95,12 +98,14 @@ export function paintSlope(ctx, s) {
   const cs = s.clumpScale ?? 80;
   const span = X1 - X0;
   const hm = (h0 + h1) / 2;
+  // (s10) share of slope trees painted as rounded broadleaf canopies (dense dab domes) instead of conifers
+  const canopyShare = s.canopy ?? 0;
   // crest: 2-3 overlapping rows
   const nCrest = Math.round(span / (hm * 0.2) * (s.crest ?? 1) * dens);
   for (let i = 0; i < nCrest; i++) {
     const x = mix(X0, X1, rng());
     const row = rng();
-    trees.push({ x, y: top(x) + 2 + row * hm * 0.55, crest: true, back: row < 0.35 });
+    trees.push({ x, y: top(x) + 2 + row * hm * 0.55, crest: true, back: row < 0.35, canopy: rng() < canopyShare * 0.5 });
   }
   const nSlope = Math.round(span * (base - yTop) * cover / (hm * hm * 0.13) * dens);
   for (let i = 0; i < nSlope; i++) {
@@ -110,7 +115,7 @@ export function paintSlope(ctx, s) {
     const y = t0 + hm * 0.4 + u * (base - t0);
     const c = nz.n2(x / cs, y / (cs * 0.6)) * 0.75 + nz.n2(x / (cs * 0.35), y / (cs * 0.25)) * 0.25;
     if (c < (clump - 0.5) * 1.2 + (rng() - 0.5) * 0.25) continue;
-    trees.push({ x, y, back: rng() < 0.45 });
+    trees.push({ x, y, back: rng() < 0.45, canopy: rng() < canopyShare });
   }
   trees.sort((a, b) => a.y - b.y);
   const pineShare = s.pineShare ?? 0.55;
@@ -122,7 +127,21 @@ export function paintSlope(ctx, s) {
     const tv = clamp(tn + u * (s.toneFall ?? 0.3) + (T.back ? 0.14 : 0) + (rng() - 0.5) * (s.toneJit ?? 0.12), 0, 0.92);
     const gg = T.back ? gt1 : gt2;
     // soft wash mass at the tree's foot merges neighbours into a forest
-    blob(gb, T.x, T.y - h * 0.15, h * (0.35 + rng() * 0.2), { color: rgba(massC, 0.22 + 0.16 * rng()), rng, irregular: 0.4, squash: 0.6 });
+    blob(gb, T.x, T.y - h * 0.15, h * (0.35 + rng() * 0.2), { color: rgba(massC, (0.22 + 0.16 * rng()) * (s.mass ?? 1)), rng, irregular: 0.4, squash: 0.6 });
+    if (T.canopy) {
+      // rounded broadleaf crown: soft grey dome + clustered dark dabs (dense on top, paper gaps below)
+      const R = h * (0.38 + rng() * 0.26);
+      const cy = T.y - R * 0.45;
+      const cC = tone(clamp(tv + 0.02, 0, 0.9), paper), dC = tone(clamp(tv - 0.12, 0, 0.9), paper);
+      blob(gg, T.x, cy, R * 0.85, { color: rgba(tone(clamp(tv + 0.2, 0, 0.9), paper), 0.5), rng, irregular: 0.45, squash: 0.7, rot: rng() * 3 });
+      const nd = 9 + ((rng() * 9) | 0);
+      for (let q = 0; q < nd; q++) {
+        const a = rng() * Math.PI * 1.15 - 0.07, rr = Math.sqrt(rng()) * R;
+        blob(gg, T.x + Math.cos(a) * rr * 1.05, cy - Math.sin(a) * rr * 0.75 + R * 0.1, R * (0.13 + rng() * 0.15), { color: rgba(rng() < 0.35 ? dC : cC, 0.55 + 0.4 * rng()), rng, irregular: 0.55, squash: 0.7 + rng() * 0.3, rot: rng() * 3 });
+      }
+      if (rng() < 0.6) stroke(gg, [[T.x + (rng() - 0.5) * R * 0.3, cy + R * 0.3], [T.x + (rng() - 0.5) * R * 0.2, T.y + h * 0.08]], { width: 0.8 + h * 0.03, color: dC, alpha: 0.8, rng, profile: 'brush', rough: 0.3 });
+      continue;
+    }
     // canopy texture: small dark dabs clustered around the crown
     const nd = 3 + ((rng() * 4) | 0);
     const dc = tone(clamp(tv + 0.08, 0, 0.9), paper);

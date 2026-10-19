@@ -16,18 +16,33 @@ import { inkify } from '../../lib/inkfx.js';
 
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
+// knobs: [{ x, top, w }] - a ridge made of several rounded summits (one continuous mass with saddles)
+function knobH(P, x) {
+  const H = P.base - P.top;
+  let h = 0, dom = P.knobs[0];
+  for (const k of P.knobs) {
+    const u = Math.min(1, Math.abs(x - k.x) / (k.w * (P.knobW ?? 1)));
+    const hk = (P.base - k.top) / H * Math.pow(Math.max(1 - Math.pow(u, P.a), 0), P.b);
+    if (hk > h) { h = hk; dom = k; }
+  }
+  return { h, dom };
+}
+
 function silhouette(P, nz) {
   const H = P.base - P.top;
   return (x) => {
-    const dx = x - P.x, w = dx < 0 ? P.wl : P.wr;
+    const dx = x - P.x, w = P.knobs ? (P.roughW ?? 220) : dx < 0 ? P.wl : P.wr;
     const u = Math.abs(dx) / w;
-    let h = Math.pow(Math.max(1 - Math.pow(Math.min(u, 1), P.a), 0), P.b);
+    const kh = P.knobs ? knobH(P, x) : null;
+    let h = kh ? kh.h : Math.pow(Math.max(1 - Math.pow(Math.min(u, 1), P.a), 0), P.b);
     h += P.foot * Math.exp(-u * 2.2) * (1 - h);
+    // roughness grows with the height on the local knob (ridge mode), so flanks get crags too
+    const hl = kh ? Math.min(1, h * H / Math.max(1, P.base - kh.dom.top)) : h;
     const rd = 1 - Math.abs(nz.n2(x / (w * 0.38), 1.3));
     const rd2 = 1 - Math.abs(nz.n2(x / (w * 0.17), 7.7));
-    h += P.rough * ((rd * rd - 0.5) * 0.17 * ss(0.05, 0.5, h) * (1 - 0.6 * ss(0.85, 1, h))
-      + (rd2 * rd2 - 0.5) * 0.05 * ss(0.05, 0.5, h)
-      + 0.045 * nz.fbm2(x / (w * 0.1), 4.2, 3) * ss(0, 0.2, h)
+    h += P.rough * ((rd * rd - 0.5) * 0.17 * ss(0.05, 0.5, hl) * (1 - 0.6 * ss(0.85, 1, hl))
+      + (rd2 * rd2 - 0.5) * 0.05 * ss(0.05, 0.5, hl)
+      + 0.045 * nz.fbm2(x / (w * 0.1), 4.2, 3) * ss(0, 0.2, hl)
       + 0.012 * nz.n2(x / 5, 9.1));
     return P.base - H * Math.max(0, h);
   };
@@ -40,6 +55,8 @@ function paintMountain(ctx, api, P, paper, k) {
   const sc = Math.min(1.6, Math.max(0.35, H / 300));
   const sil = silhouette(P, nz);
   const hOf = (x) => (P.base - sil(x)) / H;
+  // threshold height (0 base .. 1 summit): global for one peak, relative to the local knob on a ridge
+  const hT = P.knobs ? (x) => { const d = knobH(P, x).dom; return Math.min(1.1, (P.base - sil(x)) / Math.max(1, P.base - d.top)); } : hOf;
   const vD = 1 - P.tone;                                    // darkest value (0 black .. 1 paper)
   const ink = (v, a) => rgba(toneRGB(Math.min(1, v), paper), a);
   const x0 = P.x - P.wl * 1.3, x1 = P.x + P.wr * 1.3;
@@ -71,17 +88,35 @@ function paintMountain(ctx, api, P, paper, k) {
     blob(g, bxp, sil(bxp) + H * hb * r.range(0.05, 0.45), W * r.range(0.04, 0.1), { color: ink(vD, r.range(0.1, 0.22)), rng: r, irregular: 0.5, squash: r.range(1.2, 2.2), rot: 1.57 });
   }
   g.restore();
+  if (P.knobs) {
+    g.save(); g.filter = `blur(${(9 * k).toFixed(2)}px)`;
+    const bandP = new Path2D(); top.forEach((p, j) => (j ? bandP.lineTo(p[0], p[1] + 10) : bandP.moveTo(p[0], p[1] + 10)));
+    g.lineWidth = 34; g.lineJoin = 'round'; g.strokeStyle = ink(vD, 0.3 * bo); g.stroke(bandP);
+    g.restore();
+  }
+  // ridge mode: each knob gets its own soft summit wash and a shadowed left flank (rounded rock masses)
+  if (P.knobs) for (const kb of P.knobs) {
+    const kw = kb.w * (P.knobW ?? 1), hk = P.base - kb.top;
+    for (const [dx, dy, rad, al] of [[0, 0.12, 0.55, 0.45], [-0.32, 0.3, 0.35, 0.4], [r.range(0.1, 0.3), 0.35, 0.25, 0.25]]) {
+      const cx = kb.x + dx * kw, cy = kb.top + dy * hk, R = rad * kw;
+      g.save(); g.translate(cx, cy); g.scale(1, 0.55);
+      const rg = g.createRadialGradient(0, 0, 0, 0, 0, R);
+      rg.addColorStop(0, ink(vD, al * bo * 0.5)); rg.addColorStop(0.6, ink(vD, al * bo * 0.22)); rg.addColorStop(1, ink(vD, 0));
+      g.fillStyle = rg; g.fillRect(-R, -R, 2 * R, 2 * R); g.restore();
+    }
+  }
   // creases and shadow faces
-  const fs = W * 0.05 * P.fold;
+  const fs = (P.knobs ? 34 : W * 0.05) * P.fold;
   const nF = Math.max(3, Math.round((x1 - x0) / fs));
   const folds = [];
   for (let i = 0; i < nF; i++) {
     const xs = x0 + (i + 0.5 + r.range(-0.35, 0.35)) * (x1 - x0) / nF;
-    const hf = hOf(xs);
+    const hf = hT(xs);
     if (hf < 0.1) continue;
     const ys = sil(xs) + 1;
-    const len = H * hf * r.range(0.45, 1.0);
-    const ang = ((xs - P.x) / W) * 0.8 + r.range(-0.08, 0.08);
+    const len = (P.base - sil(xs)) * r.range(0.45, 1.0);
+    const dk = P.knobs ? knobH(P, xs).dom : null;
+    const ang = (dk ? ((xs - dk.x) / (dk.w * 2)) : ((xs - P.x) / W)) * 0.8 + r.range(-0.08, 0.08);
     const pts = [];
     for (let s = 0; s <= 1.001; s += 0.125) {
       pts.push([xs + Math.sin(ang) * len * s + nz.n2(i * 3.7, s * 2.2) * fs * 0.4 * s, ys + Math.cos(ang) * len * s]);
@@ -114,17 +149,17 @@ function paintMountain(ctx, api, P, paper, k) {
     poly.closePath();
     const yA = f.pts[0][1], yB = f.pts[f.pts.length - 1][1];
     const gg = g.createLinearGradient(0, yA, 0, yB);
-    const a = r.range(0.22, 0.48) * (0.5 + 0.5 * f.hf);
+    const a = r.range(0.22, 0.48) * (0.5 + 0.5 * f.hf) * P.crease;
     gg.addColorStop(0, ink(vD, a)); gg.addColorStop(1, ink(vD, 0));
     g.fillStyle = gg; g.fill(poly);
   }
   g.restore();
   for (const f of folds) {
     const w0 = (1.2 + 3.2 * f.hf * r()) * sc + 0.5;
-    stroke(g, f.pts.slice(0, Math.max(3, Math.round(f.pts.length * r.range(0.5, 1.0)))), { width: [w0, w0 * 0.25], profile: 'taper', color: ink(vD * 0.85, r.range(0.45, 0.85)), rng: r, rough: 0.4 });
+    stroke(g, f.pts.slice(0, Math.max(3, Math.round(f.pts.length * r.range(0.5, 1.0)))), { width: [w0, w0 * 0.25], profile: 'taper', color: ink(vD * 0.85, r.range(0.45, 0.85) * P.crease), rng: r, rough: 0.4 });
     if (r() < 0.6) {
       const off = r.range(-4, 4) * sc;
-      dryStroke(g, f.pts.slice(0, 5).map((p) => [p[0] + off, p[1]]), { width: (4 + 5 * r()) * sc, bristles: 4, color: ink(vD, 0.35), alpha: 0.35, dry: 0.45, rng: r, noise: nz });
+      dryStroke(g, f.pts.slice(0, 5).map((p) => [p[0] + off, p[1]]), { width: (4 + 5 * r()) * sc, bristles: 4, color: ink(vD, 0.35), alpha: 0.35 * P.crease, dry: 0.45, rng: r, noise: nz });
     }
   }
   // short cun strokes over the upper faces (axe-cut texture), denser and darker near the top
@@ -132,7 +167,7 @@ function paintMountain(ctx, api, P, paper, k) {
   for (let i = 0; i < nC; i++) {
     const x = x0 + r() * (x1 - x0);
     const hf = hOf(x);
-    if (hf < 0.15) continue;
+    if (hT(x) < 0.15) continue;
     const dd = Math.pow(r(), 1.6) * H * hf * 0.75;          // depth below the ridge
     const y = sil(x) + 3 + dd;
     const near = 1 - dd / (H * 0.75);
@@ -143,7 +178,7 @@ function paintMountain(ctx, api, P, paper, k) {
   }
   // foliage clumps along the upper ridge and at crease heads
   for (let x = x0; x <= x1; x += 3.5 * sc) {
-    const hf = hOf(x);
+    const hf = hT(x);
     if (hf < 0.45) continue;
     const dens = ss(0.45, 0.8, hf) * ss(-0.5, 0.25, nz.n2(x / (W * 0.08), 5.3));
     if (r() > dens) continue;
@@ -152,7 +187,7 @@ function paintMountain(ctx, api, P, paper, k) {
   }
   // canopy clumps: dark scalloped masses capping the summit and shoulders
   for (let x = x0; x <= x1; x += 6 * sc) {
-    const hf = hOf(x);
+    const hf = hT(x);
     const dens = P.moss * ss(0.55, 0.9, hf) * ss(-0.2, 0.4, nz.n2(x / (W * 0.12), 2.9));
     if (r() > dens) continue;
     const n = 2 + ((r() * 3) | 0);
@@ -182,7 +217,7 @@ function paintMountain(ctx, api, P, paper, k) {
   };
   for (let j = 0; j < top.length; j++) {
     const [x, y] = top[j];
-    if (hOf(x) < 0.12 || r() > 0.15 + ss(0.3, 0.75, hOf(x))) { flush(); continue; }
+    if (hT(x) < 0.12 || r() > 0.15 + ss(0.3, 0.75, hT(x))) { flush(); continue; }
     seg.push([x, y + 0.8]);
     if (seg.length > 30 + r() * 40) { flush(); seg.push([x, y + 0.8]); }
   }
@@ -192,7 +227,7 @@ function paintMountain(ctx, api, P, paper, k) {
     let x = x0 + r() * P.treeH * 0.4;
     let j = 0;
     while (x < x1) {
-      const hf = hOf(x);
+      const hf = hT(x);
       const dens = P.trees * ss(0.45, 0.8, hf) * (0.3 + 0.7 * ss(-0.4, 0.3, nz.n2(x / (P.treeH * 4), 8.8)));
       if (r() < dens) {
         const th = P.treeH * (0.55 + 0.75 * r() * r()) * (0.75 + 0.25 * hf);
@@ -209,10 +244,15 @@ function paintMountain(ctx, api, P, paper, k) {
   const mg = mc.getContext('2d');
   const img = mg.createImageData(mw, mh);
   const f0 = P.top + H * P.fade[0], f1 = P.top + H * P.fade[1];
+  // fadeLocal [d0, d1]: dissolve between d0 and d1 px below the local ridge line (depth varies along the ridge)
+  const colS = P.fadeLocal ? Array.from({ length: mw }, (_, ix) => { const X = bx + (ix + 0.5) * ds; return sil(X); }) : null;
+  // ridge flanks far from any knob (low local height) dissolve too, so no long bare flank lines remain
+  const colH = P.fadeLocal && P.knobs ? Array.from({ length: mw }, (_, ix) => ss(0.12, 0.5, hT(bx + (ix + 0.5) * ds))) : null;
+  const colV = P.fadeLocal ? Array.from({ length: mw }, (_, ix) => 1 + 0.45 * nz.n2((bx + ix * ds) / 160, 3.3)) : null;
   for (let jy = 0; jy < mh; jy++) for (let ix = 0; ix < mw; ix++) {
     const X = bx + (ix + 0.5) * ds, Y = by + (jy + 0.5) * ds;
     const n = nz.fbm2(X / 75, Y / 32, 3);
-    const m = 1 - ss(f0, f1, Y + n * H * 0.22);
+    const m = colS ? (1 - ss(colS[ix] + P.fadeLocal[0] * colV[ix], colS[ix] + P.fadeLocal[1] * colV[ix], Y + n * P.fadeLocal[1] * 0.35)) * (P.fadeFloor ? 1 - ss(P.fadeFloor[0], P.fadeFloor[1], Y + n * 40) : 1) * (colH ? colH[ix] : 1) : 1 - ss(f0, f1, Y + n * H * 0.22);
     img.data[(jy * mw + ix) * 4 + 3] = Math.round(m * 255);
   }
   mg.putImageData(img, 0, 0);
@@ -223,16 +263,25 @@ function paintMountain(ctx, api, P, paper, k) {
   ctx.drawImage(cv, bx, by, cv.width / k, cv.height / k);
 }
 
+// ridge mode: the painted span covers every knob's full width (no vertical walls at the ends)
+function knobSpan(P) {
+  if (!P.knobs) return;
+  const kw = P.knobW ?? 1;
+  const a = Math.min(...P.knobs.map((k) => k.x - k.w * kw)), b = Math.max(...P.knobs.map((k) => k.x + k.w * kw));
+  P.x = (a + b) / 2; P.wl = P.wr = (b - a) / 2 / 1.3;
+}
+
 export function makeMountains(api, o) {
   const rect = o.rect;
   const paper = o.paper || PAPER;
-  const D = { tone: o.tone ?? 0.5, a: o.a ?? 2.0, b: o.b ?? 1.15, fold: 1, trees: o.trees ?? 0.5, treeH: o.treeH ?? 18, fade: o.fade ?? [0.35, 1.0], rough: o.rough ?? 1, foot: 0.15, moss: o.moss ?? 1, cun: o.cun ?? 1, body: o.body ?? 1, base: o.base ?? 800 };
+  const D = { tone: o.tone ?? 0.5, a: o.a ?? 2.0, b: o.b ?? 1.15, fold: 1, trees: o.trees ?? 0.5, treeH: o.treeH ?? 18, fade: o.fade ?? [0.35, 1.0], rough: o.rough ?? 1, foot: o.foot ?? 0.15, knobW: o.knobW, roughW: o.roughW, crease: o.crease ?? 1, moss: o.moss ?? 1, cun: o.cun ?? 1, body: o.body ?? 1, base: o.base ?? 800 };
   const T0 = performance.now();
   const raw = api.bakeCanvas(rect[2], rect[3], (ctx, { k }) => {
     ctx.translate(-rect[0], -rect[1]);
     o.peaks.forEach((pk, i) => {
       const P = { ...D, ...pk, seed: pk.seed ?? i + 1 };
       P.wl = pk.wl ?? pk.w ?? 150; P.wr = pk.wr ?? pk.w ?? 150;
+      knobSpan(P);
       paintMountain(ctx, api, P, paper, k);
     });
   }, { scale: o.scale ?? 1 });
@@ -243,6 +292,7 @@ export function makeMountains(api, o) {
   const sils = o.peaks.map((pk, i) => {
     const P = { ...D, ...pk, seed: pk.seed ?? i + 1 };
     P.wl = pk.wl ?? pk.w ?? 150; P.wr = pk.wr ?? pk.w ?? 150;
+    knobSpan(P);
     return { f: silhouette(P, api.noise(P.seed * 31 + 7)), x0: P.x - P.wl * 1.3, x1: P.x + P.wr * 1.3 };
   });
   const topAt = (x) => { let y = 1e9; for (const s of sils) if (x >= s.x0 && x <= s.x1) y = Math.min(y, s.f(x)); return y; };

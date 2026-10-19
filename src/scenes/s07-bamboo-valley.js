@@ -81,9 +81,9 @@ export default {
       paper: P07,
       peaks: [
         { x: 1150, top: 160, base: 480, tone: 0.5, seed: 73, fade: 0.32, shape: 'dome', trees: 1.3, treeSize: 0.55, columns: [
-          { dx: -280, top: 360, hw: 50, cap: 'round' }, { dx: -215, top: 296, hw: 54, cap: 'round' }, { dx: -150, top: 252, hw: 58, cap: 'round', lit: 0.5 }, { dx: -80, top: 212, hw: 62, cap: 'round', lit: 0.5 },
-          { dx: 190, top: 300, hw: 48, cap: 'round' }, { dx: 140, top: 250, hw: 52, cap: 'round' }, { dx: 80, top: 204, hw: 60, cap: 'round', lit: 0.6 },
-          { dx: 0, top: 160, hw: 72, cap: 'round', lit: 0.5 }] },
+          { dx: -280, top: 360, hw: 72, cap: 'round' }, { dx: -215, top: 296, hw: 78, cap: 'round' }, { dx: -150, top: 252, hw: 84, cap: 'round', lit: 0.5 }, { dx: -80, top: 212, hw: 90, cap: 'round', lit: 0.5 },
+          { dx: 190, top: 300, hw: 70, cap: 'round' }, { dx: 140, top: 250, hw: 75, cap: 'round' }, { dx: 80, top: 204, hw: 87, cap: 'round', lit: 0.6 },
+          { dx: 0, top: 160, hw: 104, cap: 'round', lit: 0.5 }] },
       ],
     });
     L.push(cen.layer({ z: 7.5 }));
@@ -96,37 +96,60 @@ export default {
       paper: P07,
       peaks: [
         { x: 1290, top: 327, base: 560, tone: 0.34, seed: 74, fade: 0.42, columns: [
-          { dx: -100, top: 380, hw: 45 }, { dx: -20, top: 327, hw: 55, lit: 0.5 }, { dx: 80, top: 350, hw: 50, lit: 0.6 }, { dx: 145, top: 400, hw: 40 }] },
+          { dx: -100, top: 380, hw: 61 }, { dx: -20, top: 327, hw: 74, lit: 0.5 }, { dx: 80, top: 350, hw: 68, lit: 0.6 }, { dx: 145, top: 400, hw: 54 }] },
         { x: 1010, top: 441, base: 680, tone: 0.38, seed: 75, fade: 0.5, trees: 1.2, treeSize: 0.6, columns: [
-          { dx: -60, top: 470, hw: 50, cap: 'round' }, { dx: -20, top: 441, hw: 58, lit: 0.45, cap: 'round' }, { dx: 98, top: 476, hw: 56, lit: 0.5, cap: 'round' }, { dx: 170, top: 520, hw: 46, cap: 'round' }] },
+          { dx: -60, top: 470, hw: 68, cap: 'round' }, { dx: -20, top: 441, hw: 78, lit: 0.45, cap: 'round' }, { dx: 98, top: 476, hw: 76, lit: 0.5, cap: 'round' }, { dx: 170, top: 520, hw: 62, cap: 'round' }] },
       ],
     });
     L.push(mid.layer({ z: 5.5 }));
-    L.push(makeMist(api, { top: 585, bottom: 780, z: 5, lobe: 80, seed: 13, drift: 9, color: P07, density: 0.95 }));
+    L.push(makeMist(api, { top: 585, bottom: 780, z: 5, lobe: 80, seed: 13, drift: 9, color: P07, density: 0.82, holes: 0.35, shade: 0.42 }));
 
     // ---- left far hills behind the bamboo
     const lfar = makeRange(api, { paper: P07, rows: [{ x0: 200, x1: 620, base: 470, top: 270, amp: 0.4, tone: 0.72, seed: 76, count: 3, trees: 1, treeSize: 0.8 }], soft: 0.8 });
     L.push(lfar.layer({ z: 6 }));
 
-    // ---- far right tall pale cliff (behind the gate cliff)
-    const fr = makePeaks(api, {
-      paper: P07,
-      peaks: [
-        { x: 1570, top: 20, base: 560, tone: 0.42, seed: 77, fade: 0.55, shape: 'mesa', columns: [
-          { dx: -60, top: 50, hw: 60, lit: 0.7, cap: 'round' }, { dx: 30, top: 20, hw: 70, lit: 0.6, cap: 'round' }] },
-        { x: 1840, top: 200, base: 700, tone: 0.28, seed: 78, fade: 0.5, columns: [
-          { dx: -70, top: 230, hw: 60, lit: 0.6, cap: 'round' }, { dx: 30, top: 200, hw: 80, lit: 0.5, cap: 'round' }, { dx: 130, top: 190, hw: 60 }] },
+    // ---- far right tall cliffs behind the gate cliff (painted rock, pale, tree-crowned tops)
+    const frA = makeRocks(api, {
+      rect: [1400, -40, 440, 680], paper: P07, seed: 12,
+      look: { tone: 0.56, crown: 0.95, texture: 0.5, speckle: 0.3, cun: 2.2, angle: 0.02, stroke: 1.5, dots: 0.8, far: 0.25, ink: 0.6, aniso: 5 },
+      items: [
+        { outline: [[1466, 620], [1472, 320], [1478, 180], [1488, 120], [1502, 70], [1530, 42], [1560, 52], [1592, 20], [1632, 8], [1672, 28], [1704, 20], [1742, 58], [1772, 108], [1782, 300], [1790, 620]],
+          top: [[1478, 180], [1488, 120], [1502, 70], [1530, 42], [1560, 52], [1592, 20], [1632, 8], [1672, 28], [1704, 20], [1742, 58], [1772, 108]], crown: 46, drips: 0.35, rough: 5, fade: [380, 580],
+          dark: [{ poly: [[1466, 80], [1506, 60], [1512, 620], [1466, 620]], a: 70 }, { poly: [[1700, 40], [1780, 100], [1786, 400], [1716, 360]], a: 80 }],
+          lit: [{ poly: [[1540, 90], [1660, 70], [1680, 620], [1550, 620]], a: 110 }] },
       ],
     });
-    L.push(fr.layer({ z: 4 }));
-    // pale distant forest in the valley mist
-    const pfRect = [1100, 520, 420, 240];
+    L.push(frA.layer({ z: 4.05 }));
+    const frB = makeRocks(api, {
+      rect: [1700, 120, 380, 600], paper: P07, seed: 13,
+      look: { tone: 0.48, crown: 1.0, texture: 0.6, speckle: 0.4, cun: 1.8, angle: 0.02, stroke: 1.2, dots: 0.9, far: 0.1, ink: 0.8, aniso: 5 },
+      items: [
+        { outline: [[1730, 700], [1736, 400], [1744, 240], [1770, 200], [1820, 184], [1880, 190], [1940, 205], [2000, 222], [2070, 240], [2070, 700]],
+          top: [[1744, 240], [1770, 200], [1820, 184], [1880, 190], [1940, 205], [2000, 222], [2070, 240]], crown: 50, drips: 0.3, rough: 5, fade: [520, 700],
+          dark: [{ poly: [[1736, 220], [1790, 200], [1796, 700], [1736, 700]], a: 100 }] },
+      ],
+    });
+    L.push(frB.layer({ z: 3.95 }));    const frtRect = [1400, -100, 680, 380];
+    const frtRaw = api.bakeCanvas(frtRect[2], frtRect[3], (ctx) => {
+      ctx.translate(-frtRect[0], -frtRect[1]);
+      const r = api.rng(94);
+      paintShrubMass(ctx, [[1484, 150], [1504, 76], [1540, 46], [1600, 22], [1660, 24], [1720, 36], [1770, 104]], r, { count: 26, height: [20, 44], tone: 0.22, paper: P07, spread: 70, density: 1.4 });
+      paintTreeLine(ctx, [[1490, 110], [1510, 62], [1540, 40], [1594, 18], [1640, 8], [1700, 20], [1744, 58]], { height: [26, 54], density: 2.6, tone: 0.26, rows: 2, mix: 0.8, paper: P07, seed: 95 });
+      paintTreeLine(ctx, [[1748, 232], [1780, 198], [1840, 184], [1900, 192], [1970, 210], [2060, 238]], { height: [36, 86], density: 2.8, tone: 0.1, rows: 2, mix: 0.75, paper: P07, seed: 96 });
+      paintShrubMass(ctx, [[1744, 236], [1800, 192], [1880, 192], [1960, 210], [2060, 238]], r, { count: 22, height: [18, 40], tone: 0.08, paper: P07, spread: 70, density: 1.4 });
+    });
+    L.push(api.tex(inkify(api, frtRaw, { edge: 0.25, granulation: 0.15, bleed: 1.2 }), { rect: frtRect, z: 4 }));    // pale distant forest in the valley mist
+    const pfRect = [1090, 470, 450, 320];
     const pfRaw = api.bakeCanvas(pfRect[2], pfRect[3], (ctx) => {
       ctx.translate(-pfRect[0], -pfRect[1]);
-      paintTreeLine(ctx, [[1150, 640], [1230, 630], [1320, 650], [1420, 670], [1480, 690]], { height: [40, 74], density: 3, tone: 0.5, toneJitter: 0.15, rows: 3, clump: 0.5, paper: P07, seed: 91 });
+      // soft grey forest mass the trees grow out of (reads as distant woods, not single icons)
+      ctx.save(); ctx.filter = 'blur(16px)'; ctx.fillStyle = rgba(tone(0.7, P07), 0.55);
+      ctx.beginPath(); ctx.moveTo(1120, 760); ctx.lineTo(1150, 690); ctx.lineTo(1240, 650); ctx.lineTo(1330, 655); ctx.lineTo(1420, 690); ctx.lineTo(1510, 730); ctx.lineTo(1520, 790); ctx.closePath(); ctx.fill(); ctx.restore();
+      paintTreeLine(ctx, [[1130, 690], [1200, 650], [1280, 640], [1360, 660], [1430, 690], [1500, 720]], { height: [60, 125], density: 3.0, tone: 0.45, toneJitter: 0.15, rows: 3, clump: 0.55, mix: 0.95, spruce: 0.45, paper: P07, seed: 91 });
+      paintTreeLine(ctx, [[1150, 740], [1260, 720], [1380, 735], [1490, 760]], { height: [40, 80], density: 2.6, tone: 0.52, toneJitter: 0.12, rows: 2, clump: 0.5, mix: 0.95, spruce: 0.4, paper: P07, seed: 92 });
     });
-    L.push(api.tex(inkify(api, pfRaw, { edge: 0.2, granulation: 0.15, bleed: 1.4 }), { rect: pfRect, z: 4.5, opacity: 0.85 }));
-    L.push(makeMist(api, { top: 692, bottom: 820, z: 4.2, lobe: 60, seed: 17, drift: 9, color: P07, density: 0.9, extent: [1080, 1560, 120] }));
+    L.push(api.tex(inkify(api, pfRaw, { edge: 0.15, granulation: 0.15, bleed: 2.2 }), { rect: pfRect, z: 4.5, opacity: 0.85 }));
+    L.push(makeMist(api, { top: 715, bottom: 830, z: 4.2, lobe: 60, seed: 17, drift: 9, color: P07, density: 0.62, holes: 0.3, shade: 0.4, extent: [1080, 1560, 120] }));
 
     // ---- left-centre cliff + forested ridge sloping to the river
     const lc = makePeaks(api, {
@@ -141,14 +164,14 @@ export default {
     const ridgeRaw = api.bakeCanvas(ridgeRect[2], ridgeRect[3], (ctx) => {
       ctx.translate(-ridgeRect[0], -ridgeRect[1]);
       const ridge = [[700, 545], [760, 580], [830, 620], [900, 660], [970, 700], [1040, 735], [1100, 765], [1160, 790]];
-      paintTreeLine(ctx, ridge, { height: [56, 104], density: 3.2, tone: 0.05, rows: 3, clump: 0.35, paper: P07, seed: 21 });
+      paintTreeLine(ctx, ridge, { height: [56, 104], density: 3.2, tone: 0.05, rows: 3, clump: 0.35, mix: 0.85, spruce: 0.35, paper: P07, seed: 21 });
       for (let k = 1; k <= 4; k++) {
         const off = ridge.map(([x, y]) => [x + k * 12, y + k * 38]);
-        paintTreeLine(ctx, off, { height: [48 - k * 4, 90 - k * 8], density: 3.6, tone: 0.06 + k * 0.045, rows: 2, clump: 0.35, paper: P07, seed: 21 + k, from: 0.02 * k, to: 1 - 0.08 * k });
+        paintTreeLine(ctx, off, { height: [48 - k * 4, 90 - k * 8], density: 3.6, tone: 0.06 + k * 0.045, rows: 2, clump: 0.35, mix: 0.9, spruce: 0.4, paper: P07, seed: 21 + k, from: 0.02 * k, to: 1 - 0.08 * k });
       }
     });
     L.push(api.tex(inkify(api, ridgeRaw, { edge: 0.35, granulation: 0.2, bleed: 0.9 }), { rect: ridgeRect, z: 3.1 }));
-    L.push(makeMist(api, { top: 740, bottom: 900, z: 3, lobe: 70, seed: 14, drift: 11, color: P07, density: 0.8, extent: [820, 1500, 140] }));
+    L.push(makeMist(api, { top: 768, bottom: 900, z: 3, lobe: 70, seed: 14, drift: 11, color: P07, density: 0.58, holes: 0.35, shade: 0.4, extent: [820, 1500, 140] }));
 
     // ---- river
     const mrect = [600, 700, 1180, 450];
@@ -162,12 +185,12 @@ export default {
 
     // ---- right cliff with the gate
     const rock = makeRocks(api, {
-      rect: [1400, 400, 640, 520], paper: P07, seed: 5, look: { tone: 0.7, crown: 1.0, texture: 0.4, speckle: 0.7, cun: 1.8 },
+      rect: [1400, 400, 640, 520], paper: P07, seed: 5, look: { tone: 0.46, crown: 1.0, texture: 0.9, speckle: 0.5, cun: 1.6, angle: 0.03, stroke: 1.25, dots: 0.7, dry: 0.9, aniso: 4 },
       items: [
-        { outline: [[1438, 480], [1452, 458], [1490, 452], [1540, 448], [1600, 446], [1660, 447], [1700, 455], [1740, 478], [1780, 520], [1796, 546], [1700, 560], [1690, 700], [1694, 840], [1452, 860], [1446, 700], [1440, 560]],
-          fade: [690, 830], top: [[1438, 480], [1452, 458], [1490, 452], [1530, 450]], crown: 26, drips: 0.05, rough: 2,
-          dark: [{ poly: [[1440, 470], [1540, 460], [1530, 560], [1450, 600]], a: 70 }, { poly: [[1640, 520], [1700, 520], [1696, 800], [1650, 800]], a: 90 }],
-          lit: [{ poly: [[1452, 520], [1490, 520], [1500, 860], [1456, 860]], a: 130 }, { poly: [[1540, 470], [1700, 470], [1760, 530], [1560, 520]], a: 160 }],
+        { outline: [[1438, 480], [1452, 458], [1490, 452], [1540, 448], [1600, 446], [1660, 447], [1700, 455], [1740, 478], [1780, 520], [1796, 546], [1700, 560], [1690, 700], [1694, 840], [1452, 860], [1440, 740], [1447, 662], [1433, 600], [1445, 540]],
+          fade: [690, 830], top: [[1438, 480], [1452, 458], [1490, 452], [1530, 450]], crown: 26, drips: 0.05, rough: 4,
+          dark: [{ poly: [[1440, 470], [1540, 460], [1530, 560], [1450, 600]], a: 70 }, { poly: [[1430, 470], [1478, 470], [1484, 780], [1436, 780]], a: 80 }, { poly: [[1598, 520], [1632, 520], [1642, 820], [1608, 820]], a: 90 }, { poly: [[1640, 520], [1700, 520], [1696, 800], [1650, 800]], a: 90 }],
+          lit: [{ poly: [[1486, 540], [1584, 520], [1592, 860], [1494, 860]], a: 120 }, { poly: [[1540, 470], [1700, 470], [1760, 530], [1560, 520]], a: 160 }],
           contour: [{ pts: [[1440, 560], [1446, 700], [1452, 830]], w: 4 }, { pts: [[1688, 570], [1690, 700], [1694, 820]], w: 6 }] },
         { outline: [[1672, 572], [1700, 550], [1745, 548], [1792, 560], [1842, 580], [1900, 598], [1970, 612], [2030, 620], [2030, 920], [1684, 920], [1676, 720]],
           fade: [680, 820], top: [[1672, 572], [1700, 550], [1745, 548], [1792, 560], [1842, 580], [1900, 598], [1970, 612]], crown: 34, drips: 0.05, rough: 3,
@@ -189,10 +212,10 @@ export default {
       for (let i = 0; i < 18; i++) paintMapleDab(ctx, 1770 + r.range(-25, 25), 585 + r.range(-18, 18), r.range(3, 7), { color: [178, 70, 52], alpha: r.range(0.5, 0.85), rng: r, rot: r() * 6 });
       // red maple behind the gate's right side
       ctx.strokeStyle = rgba(tone(0.08, P07), 0.9); ctx.lineWidth = 2.5; ctx.lineCap = 'round';
-      for (const [x0, y0, x1, y1] of [[1700, 458], [1716, 430], [1712, 440], [1740, 410], [1705, 452], [1680, 420]].reduce((a, p, i, arr) => (i % 2 ? a : [...a, [...p, ...arr[i + 1]]]), [])) { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); }
-      for (let i = 0; i < 90; i++) {
+      for (const seg of [[[1730, 472], [1733, 446], [1728, 420]], [[1732, 448], [1752, 426], [1762, 414]], [[1729, 432], [1710, 414], [1702, 400]], [[1731, 440], [1758, 440]]]) { ctx.lineWidth = seg === undefined ? 1 : (seg[0][1] > 460 ? 3 : 1.6); ctx.beginPath(); seg.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.stroke(); }
+      for (let i = 0; i < 150; i++) {
         const a = r() * Math.PI * 2, d = Math.sqrt(r()) * 1;
-        const x = 1708 + Math.cos(a) * d * 40, y = 415 + Math.sin(a) * d * 30;
+        const x = 1732 + Math.cos(a) * d * 46, y = 414 + Math.sin(a) * d * 36;
         paintMapleDab(ctx, x, y, r.range(2.5, 6), { color: r.chance(0.3) ? [140, 52, 40] : [176, 78, 60], alpha: r.range(0.5, 0.85), rng: r, rot: r() * 6 });
       }
     });
@@ -201,22 +224,26 @@ export default {
     L.push(api.tex(gate.src, { rect: gate.rect, z: 2.3 }));
 
     // conifers in front of the cliff, left of it
-    const cfRect = [1300, 560, 200, 300];
+    const cfRect = [1240, 480, 280, 380];
     const cfRaw = api.bakeCanvas(cfRect[2], cfRect[3], (ctx) => {
       ctx.translate(-cfRect[0], -cfRect[1]);
       const r = api.rng(41);
-      const T = [[1350, 800, 120], [1385, 790, 150], [1420, 805, 110], [1330, 820, 80], [1445, 810, 90]];
-      for (const [x, y, h] of T) paintConifer(ctx, x, y, h, { kind: 'fir', tone: 0.08, paper: P07, seed: r.int(1, 1e6) });
+      const T = [[1395, 800, 270], [1360, 806, 200], [1430, 812, 170], [1335, 822, 130], [1300, 812, 95], [1272, 826, 70], [1455, 826, 120], [1412, 832, 90]];
+      for (const [x, y, h] of T) paintConifer(ctx, x, y, h, { kind: h > 110 ? 'spruce' : 'fir', tiers: Math.round(h / 12), width: h > 110 ? 0.95 : 1, tone: 0.1 + (h > 180 ? 0.06 : 0), paper: P07, seed: r.int(1, 1e6) });
     });
     L.push(api.tex(inkify(api, cfRaw, { edge: 0.35, granulation: 0.2, bleed: 0.9 }), { rect: cfRect, z: 2.15 }));
     L.push(makeMist(api, { top: 770, bottom: 960, z: 2.1, lobe: 70, seed: 15, drift: 12, color: P07, density: 1, shade: 0.4, extent: [1300, 2000, 90] }));
 
     // ---- islands and shore rocks in the river (with reflections)
     const isl = makeRocks(api, {
-      rect: [630, 760, 900, 220], paper: P07, seed: 9, look: { tone: 0.4, crown: 1.3, texture: 1, speckle: 0.6, cun: 0.5 },
+      rect: [630, 760, 900, 220], paper: P07, seed: 9, look: { tone: 0.45, crown: 1.1, texture: 0.9, speckle: 0.6, cun: 0.8, angle: 1.2, stroke: 0.5, dots: 0.6 },
       items: [
-        { outline: [[650, 906], [700, 872], [780, 860], [870, 864], [960, 872], [1030, 882], [1080, 896], [1104, 910], [650, 912]], top: [[650, 906], [700, 872], [780, 860], [870, 864], [960, 872], [1030, 882], [1080, 896], [1104, 910]], crown: 22, rough: 5 },
-        { outline: [[1136, 906], [1166, 862], [1220, 838], [1282, 842], [1332, 858], [1362, 884], [1374, 908]], top: [[1136, 906], [1166, 862], [1220, 838], [1282, 842], [1332, 858], [1362, 884], [1374, 908]], crown: 26, rough: 6 },
+        { outline: [[650, 908], [668, 884], [702, 870], [742, 868], [770, 884], [784, 908]], top: [[650, 908], [668, 884], [702, 870], [742, 868], [770, 884]], crown: 14, rough: 3 },
+        { outline: [[760, 908], [790, 878], [836, 862], [880, 866], [910, 886], [924, 908]], top: [[760, 908], [790, 878], [836, 862], [880, 866], [910, 886]], crown: 16, rough: 3 },
+        { outline: [[904, 910], [930, 890], [972, 882], [1004, 892], [1016, 910]], top: [[904, 910], [930, 890], [972, 882], [1004, 892]], crown: 12, rough: 2 },
+        { outline: [[1010, 912], [1036, 898], [1070, 896], [1096, 904], [1106, 912]], top: [[1010, 912], [1036, 898], [1070, 896], [1096, 904]], crown: 10, rough: 2 },
+        { outline: [[1136, 906], [1160, 870], [1206, 846], [1258, 846], [1284, 866], [1292, 906]], top: [[1136, 906], [1160, 870], [1206, 846], [1258, 846], [1284, 866]], crown: 20, rough: 4 },
+        { outline: [[1270, 908], [1296, 880], [1334, 868], [1360, 886], [1372, 908]], top: [[1270, 908], [1296, 880], [1334, 868], [1360, 886]], crown: 14, rough: 3 },
         { outline: [[1384, 952], [1408, 932], [1450, 926], [1490, 936], [1504, 954]], top: [[1384, 952], [1408, 932], [1450, 926], [1490, 936], [1504, 954]], crown: 14, rough: 3 },
       ],
     });
@@ -242,27 +269,31 @@ export default {
     const bgSh = api.bakeCanvas(bgShRect[2], bgShRect[3], (ctx) => {
       ctx.translate(-bgShRect[0], -bgShRect[1]);
       const r = api.rng(73);
-      paintShrubMass(ctx, [[0, 830], [100, 790], [200, 760], [300, 742], [400, 744]], r, { count: 40, height: [50, 110], tone: 0.02, paper: P07, spread: 75, density: 2 });
+      paintShrubMass(ctx, [[0, 830], [100, 790], [200, 760], [300, 742], [400, 744]], r, { count: 30, height: [50, 110], tone: 0.06, paper: P07, spread: 75, density: 1.6 });
     });
     L.push(api.tex(inkify(api, bgSh, { edge: 0.1, granulation: 0.1, bleed: 0.5 }), { rect: bgShRect, z: 1.0 }));
     const near = makeRocks(api, {
-      rect: [-140, 680, 1320, 480], paper: P07, seed: 6, look: { tone: 0.22, crown: 1.25, texture: 1, speckle: 1, cun: 0.7 },
+      rect: [-140, 680, 1320, 480], paper: P07, seed: 6, look: { tone: 0.24, crown: 0.85, texture: 1.4, speckle: 0.2, cun: 1.4, angle: 0.12, stroke: 1.0, dots: 0.8, aniso: 1.2, blotch: 1.3 },
       items: [
-        { outline: [[204, 800], [224, 760], [262, 735], [310, 718], [355, 713], [400, 720], [440, 734], [470, 752], [492, 778], [505, 820], [515, 900], [526, 1000], [534, 1160], [196, 1160], [194, 900]],
-          top: [[204, 800], [224, 760], [262, 735], [310, 718], [355, 713], [400, 720], [440, 734], [470, 752], [492, 778]], crown: 56, drips: 0.25, rough: 6,
-          dark: [{ poly: [[200, 760], [480, 740], [470, 860], [210, 900]], a: 90 }],
+        { outline: [[200, 806], [218, 768], [252, 742], [300, 722], [352, 712], [398, 716], [440, 730], [474, 754], [498, 786], [512, 830], [522, 900], [528, 1000], [530, 1160], [176, 1160], [174, 960], [184, 880]],
+          top: [[200, 806], [218, 768], [252, 742], [300, 722], [352, 712], [398, 716], [440, 730], [474, 754], [498, 786]], crown: 44, drips: 0.25, rough: 6,
+          dark: [{ poly: [[196, 750], [420, 716], [400, 1000], [190, 1060]], a: 170 }],
           lit: [{ poly: [[456, 790], [505, 810], [512, 1160], [446, 1160], [440, 900]], a: 160 }, { poly: [[250, 1000], [380, 980], [390, 1160], [240, 1160]], a: 80 }],
           contour: [{ pts: [[492, 778], [505, 820], [515, 900], [526, 1000], [534, 1100]], w: 5 }, { pts: [[440, 790], [438, 900], [444, 1060]], w: 3 }] },
-        { outline: [[610, 1002], [652, 976], [722, 962], [800, 955], [880, 958], [960, 966], [1040, 981], [1100, 1002], [1142, 1032], [1152, 1160], [610, 1160]],
-          top: [[610, 1002], [652, 976], [722, 962], [800, 955], [880, 958], [960, 966], [1040, 981], [1100, 1002], [1142, 1032]], crown: 40, drips: 0.1,
-          lit: [{ poly: [[700, 1010], [820, 1000], [840, 1160], [700, 1160]], a: 120 }] },
-      ],
+        { outline: [[598, 1010], [622, 972], [664, 950], [714, 946], [758, 962], [790, 992], [806, 1060], [810, 1160], [598, 1160]],
+          top: [[598, 1010], [622, 972], [664, 950], [714, 946], [758, 962], [790, 992]], crown: 44, drips: 0.3, rough: 5,
+          dark: [{ poly: [[600, 950], [720, 940], [700, 1100], [600, 1100]], a: 110 }] },
+        { outline: [[770, 1030], [800, 990], [850, 966], [910, 960], [960, 976], [990, 1010], [1000, 1160], [770, 1160]],
+          top: [[770, 1030], [800, 990], [850, 966], [910, 960], [960, 976], [990, 1010]], crown: 40, drips: 0.3, rough: 5,
+          lit: [{ poly: [[900, 990], [990, 1010], [1000, 1160], [910, 1160]], a: 90 }] },
+        { outline: [[970, 1030], [996, 1000], [1040, 984], [1090, 992], [1130, 1020], [1150, 1060], [1156, 1160], [970, 1160]],
+          top: [[970, 1030], [996, 1000], [1040, 984], [1090, 992], [1130, 1020], [1150, 1060]], crown: 34, drips: 0.25, rough: 4 },      ],
     });
     const lrock = makeRocks(api, {
-      rect: [-140, 800, 400, 360], paper: P07, seed: 8, look: { tone: 0.66, crown: 1.1, texture: 0.8, speckle: 0.6, cun: 1.0 },
+      rect: [-140, 800, 400, 360], paper: P07, seed: 8, look: { tone: 0.62, crown: 0.4, texture: 0.5, speckle: 0.6, ink: 0.72, cun: 3.4, angle: -0.7, stroke: 1.8, dots: 1.2, dry: 0.4, jitter: 0.45, aniso: 1.6 },
       items: [{ outline: [[-140, 940], [-60, 905], [0, 880], [60, 860], [130, 850], [180, 862], [214, 890], [232, 932], [240, 1160], [-140, 1160]],
         top: [[-140, 940], [-60, 905], [0, 880], [60, 860], [130, 850], [180, 862], [214, 890]], crown: 26, drips: 0.15, rough: 4,
-        lit: [{ poly: [[-60, 900], [150, 900], [200, 1010], [210, 1160], [-60, 1160]], a: 150 }],
+        lit: [{ poly: [[-60, 900], [150, 900], [200, 1010], [210, 1160], [-60, 1160]], a: 60 }],
         contour: [{ pts: [[170, 866], [214, 896], [232, 940], [238, 1060]], w: 3 }] }],
     });
     L.push(near.layer({ z: 1.0 }));
@@ -271,9 +302,9 @@ export default {
     const shRaw = api.bakeCanvas(shRect[2], shRect[3], (ctx) => {
       ctx.translate(-shRect[0], -shRect[1]);
       const r = api.rng(71);
-      paintShrubMass(ctx, [[505, 1090], [560, 1040], [620, 1000], [700, 990]], r, { count: 14, height: [80, 170], tone: 0.0, paper: P07, spread: 50, lean: 10, density: 2.2 });
+      paintShrubMass(ctx, [[505, 1090], [560, 1040], [620, 1000], [700, 990]], r, { count: 12, height: [80, 170], tone: 0.02, paper: P07, spread: 50, lean: 10, density: 1.8 });
       paintShrubMass(ctx, [[500, 900], [540, 870]], r, { count: 4, height: [50, 90], tone: 0.06, paper: P07, spread: 60, lean: 20 });
-      paintShrubMass(ctx, [[640, 985], [760, 962], [900, 956], [1060, 985]], r, { count: 12, height: [24, 50], tone: 0.06, paper: P07 });
+      paintShrubMass(ctx, [[640, 985], [760, 962], [900, 956], [1060, 985], [1130, 1020]], r, { count: 22, height: [30, 72], tone: 0.05, paper: P07, density: 1.4 });
       for (const [x, y, h] of [[820, 962, 70], [880, 960, 56], [950, 968, 64], [1010, 978, 48]]) paintConifer(ctx, x, y, h, { kind: 'pine', tone: 0.06, paper: P07, seed: x });
     });
     L.push(api.tex(inkify(api, shRaw, { edge: 0.1, granulation: 0.1, bleed: 0.5 }), { rect: shRect, z: 1.0 }));

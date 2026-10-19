@@ -18,12 +18,12 @@ export function paintCanopy(ctx, r, x, y, R, { v = 0.08, paper = PAPER, trunk = 
     const a = r.range(-Math.PI, 0) * 0.95 - 0.08, d = Math.sqrt(r()) * R * 0.75;
     cl.push([x + Math.cos(a) * d * 1.2, y + Math.sin(a) * d * 0.85 + R * 0.2, R * r.range(0.32, 0.58)]);
   }
-  for (const [cx, cy, rr] of cl) blob(ctx, cx, cy - 1, rr + 2.2, { color: rgba(paper, 0.8), rng: r, irregular: 0.3, squash: 0.82, sides: 9 });
+  for (const [cx, cy, rr] of cl) blob(ctx, cx, cy - 1, rr + 1.6, { color: rgba(paper, 0.35), rng: r, irregular: 0.5, squash: 0.82, sides: 9 });
   for (let i = 0; i < n; i++) {
     const [cx, cy, rr] = cl[i];
-    blob(ctx, cx, cy, rr, { color: ink(v + r.range(-0.03, 0.12), r.range(0.75, 0.95)), rng: r, irregular: 0.42, squash: 0.82, sides: 11 });
+    blob(ctx, cx, cy, rr, { color: ink(v + r.range(-0.03, 0.18), r.range(0.65, 0.95)), rng: r, irregular: 0.62, squash: r.range(0.6, 0.9), rot: r.range(-0.4, 0.4), sides: 13 });
   }
-  dots(ctx, x, y - R * 0.2, R * 1.1, Math.round(R * 1.2), { size: [0.8, 2.6], color: ink(v, 1), alpha: [0.5, 0.95], rng: r, squash: 0.55 });
+  dots(ctx, x, y - R * 0.2, R * 1.2, Math.round(R * 2), { size: [0.8, 2.8], color: ink(v, 1), alpha: [0.5, 0.95], rng: r, squash: 0.55 });
 }
 
 // Canopies scattered along a polyline (and in a band below it), back row first.

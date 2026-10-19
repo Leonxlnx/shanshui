@@ -2,7 +2,7 @@
 // (large connected seas, not separate blobs), fine crater speckle, and only a faint tight glow.
 const C = (rgb) => rgb.map((v) => (v / 255).toFixed(4)).join(', ');
 
-export function makeMoon03(api, { x, y, r, z = 1e5, color = [255, 253, 245], maria = [198, 194, 186], glow = 0.18, glowR = 0.35, seed = 2.3, name = 'moon' } = {}) {
+export function makeMoon03(api, { x, y, r, z = 1e5, color = [250, 243, 224], maria = [212, 203, 186], glow = 0.24, glowR = 0.45, seed = 2.3, name = 'moon' } = {}) {
   const ext = Math.ceil(r * (1 + glowR * 3) + 6), size = ext * 2;
   const src = api.bakeShader(size, size, /* glsl */ `
     vec4 shade(vec2 p, vec2 uv) {

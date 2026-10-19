@@ -106,7 +106,7 @@ export function snowPine(g0, rng, x, y, h, { lean = 0, reach = 0, tone: tv = 0.0
   }
   dryStroke(g, spine, { width: Math.max(2.5, h * 0.085), bristles: 5, color: ink, alpha: 0.95, dry: 0.12, rng, profile: 'taper' });
   const pads = [];
-  const nb = 2 + Math.round(h / 70 + rng());
+  const nb = 2 + Math.round(h / 45 + rng());
   for (let i = 0; i < nb; i++) {
     const s = 0.4 + 0.6 * (i / Math.max(1, nb - 1)) + (rng() - 0.5) * 0.08;
     const p = spine[Math.max(0, Math.min(8, Math.round(s * 8)))];
@@ -115,18 +115,21 @@ export function snowPine(g0, rng, x, y, h, { lean = 0, reach = 0, tone: tv = 0.0
     const end = [p[0] + dir * L, p[1] - L * (0.02 + rng() * 0.18)];
     const mid = [p[0] + dir * L * 0.5, p[1] + L * (rng() - 0.6) * 0.12];
     dryStroke(g, [p, mid, end], { width: Math.max(1.4, h * 0.032), bristles: 3, color: ink, alpha: 0.92, dry: 0.15, rng, profile: 'taper' });
-    const nt = 2 + Math.round(L / (h * 0.14));
+    // a rounded clump of needle tufts around the branch end (a dense crown, not a flat shelf)
     const tf = [];
-    for (let j = 0; j < nt; j++) {
-      const u = 0.35 + 0.7 * j / Math.max(1, nt - 1);
-      tf.push([p[0] + dir * L * u + (rng() - 0.5) * 6, mid[1] + (end[1] - mid[1]) * u + (rng() - 0.5) * 6, h * (0.1 + rng() * 0.06)]);
+    const cw = L * (0.8 + rng() * 0.35), ch = h * (0.3 + rng() * 0.12), nc = 6 + ((rng() * 5) | 0);
+    const cx = end[0] - dir * cw * 0.3, cy = end[1] - ch * 0.2;
+    for (let j = 0; j < nc; j++) {
+      const a = rng() * Math.PI * 2, rr = Math.sqrt(rng());
+      tf.push([cx + Math.cos(a) * rr * cw * 0.5, cy + Math.sin(a) * rr * ch * 0.5 - ch * 0.15, h * (0.13 + rng() * 0.08)]);
     }
+    tf.sort((a, b) => a[1] - b[1]);
     pads.push(tf);
   }
   const top = spine[8];
   pads.push([[top[0], top[1] + 3, h * 0.08], [top[0] - h * 0.07, top[1] + h * 0.06, h * 0.07], [top[0] + h * 0.07, top[1] + h * 0.07, h * 0.07]]);
   for (const tf of pads) for (const [tx, ty, r] of tf) tuft(g, rng, tx, ty, r, ink);
-  snowCaps(cv, k, { cap: h * 0.09, mound: h * 0.055, blur: Math.max(2, h * 0.06), freq: 0.08, lobes: 0.45, seed: (rng() * 1000) | 0, rim: [214, 218, 223] });
+  snowCaps(cv, k, { cap: h * 0.08, mound: h * 0.05, blur: Math.max(2, h * 0.055), freq: 0.08, lobes: 0.6, seed: (rng() * 1000) | 0, rim: [214, 218, 223], pokeV: 0.55 });
   g0.drawImage(cv, bx, by, bw, bh);
 }
 
@@ -189,7 +192,7 @@ export function paintMass(ctx, k, api, M, seed) {
     fg.addColorStop(Math.min(0.9, dd), rgba(tn(v)));
     fg.addColorStop(1, rgba(tn(Math.min(0.85, v + 0.22))));
     g.fillStyle = fg;
-    g.filter = `blur(${(5 * k).toFixed(1)}px)`;
+    g.filter = `blur(${((M.facetBlur ?? 5) * k).toFixed(1)}px)`;
     const sk = (rng() - 0.5) * fw * 0.35;
     g.beginPath(); g.moveTo(fx, t - 30); g.lineTo(fx + fw, t - 30); g.lineTo(fx + fw + sk, yEnd + 30); g.lineTo(fx + sk, yEnd + 30); g.closePath(); g.fill();
     g.filter = `blur(${(4 * k).toFixed(1)}px)`;
@@ -212,6 +215,28 @@ export function paintMass(ctx, k, api, M, seed) {
     const x = bb.x0 + rng() * bb.w, t = topAt(x);
     const y = t + Math.pow(rng(), 1.8) * Math.max(20, yEnd - t);
     const bl = 6 + rng() * 40; dryStroke(g, [[x, y], [x + (rng() - 0.5) * 4, y + bl * 0.5], [x + (rng() - 0.5) * 6, y + bl]], { width: 2 + rng() * 7, bristles: 3, color: tn(0.02 + rng() * 0.12), alpha: 0.4 + rng() * 0.45, dry: 0.25, rng });
+  }
+  // cun: long thin fissure strokes, slightly bent, in loose families; pale lit planes between
+  const ncun = Math.round(bb.w * bb.h / 2600 * (M.cun ?? 0));
+  for (let i = 0; i < ncun; i++) {
+    const x = bb.x0 + rng() * bb.w, t = topAt(x);
+    const y = t + 4 + Math.pow(rng(), 1.4) * Math.max(30, yEnd - t);
+    const len = 30 + rng() * 140, lean = (rng() - 0.5) * 0.4;
+    const fam = 1 + ((rng() * 3) | 0);
+    for (let f = 0; f < fam; f++) {
+      let px = x + f * (4 + rng() * 7), py = y + (rng() - 0.5) * 12;
+      const pts = [];
+      for (let s = 0; s < 5; s++) { pts.push([px, py]); px += lean * len / 4 + (rng() - 0.5) * 5; py += len / 4 * (0.8 + rng() * 0.4); }
+      dryStroke(g, pts, { width: (1.2 + rng() * 3.2) * (f ? 0.7 : 1), bristles: 3, color: tn(0.02 + rng() * 0.1), alpha: 0.5 + rng() * 0.4, dry: 0.45, rng, profile: 'taper' });
+    }
+    if (rng() < 0.5) {
+      g.filter = `blur(${(3 * k).toFixed(1)}px)`;
+      const lg = g.createLinearGradient(0, y, 0, y + len);
+      lg.addColorStop(0, rgba(tn(0.95), 0)); lg.addColorStop(0.3, rgba(tn(0.95), 0.3 + rng() * 0.3)); lg.addColorStop(1, rgba(tn(0.95), 0));
+      g.fillStyle = lg;
+      g.beginPath(); g.moveTo(x + 3, y); g.lineTo(x + 6 + 10 + rng() * 14, y + 8); g.lineTo(x + 8 + 10 + lean * len, y + len); g.lineTo(x + 4 + lean * len, y + len); g.closePath(); g.fill();
+      g.filter = 'none';
+    }
   }
   g.restore();
 
@@ -272,6 +297,8 @@ export function paintMass(ctx, k, api, M, seed) {
     blanket.push(...bot);
   }
 
+  // ---- snow settling on the tops of the dark rock (facet tops, creases), before the pines
+  if (M.settle) snowCaps(cv, k, { ink: true, seed: seed * 5 + 2, rim: [214, 218, 223], ...M.settle });
   // ---- top boulders, snow ledges and pines, top to bottom
   const [lw0, lw1] = M.lump || [40, 120];
   const items = [];
@@ -324,8 +351,6 @@ export function paintMass(ctx, k, api, M, seed) {
     for (const [x, y, r] of row) blob(g, x + r * 0.08, y + r * 0.3, r * 1.03, { color: SNOW_SH, alpha: 0.9, rng, irregular: 0.28, squash: 0.6 });
     for (const [x, y, r] of row) blob(g, x - r * 0.05, y - r * 0.05, r, { color: SNOW, alpha: 1, rng, irregular: 0.28, squash: 0.58 });
   }
-  // ---- snow settling on the tops of the dark rock (ledges, facet tops, boulders)
-  if (M.settle) snowCaps(cv, k, { ink: true, seed: seed * 5 + 2, rim: [214, 218, 223], ...M.settle });
   // ---- mist dissolve at the bottom
   if (M.fade) {
     g.save();
@@ -347,20 +372,24 @@ export function paintMass(ctx, k, api, M, seed) {
 
 const FINISH = /* glsl */ `
 uniform float uSeed;
-uniform vec2 uOff;
+uniform vec2 uOff, uDim;
 vec4 shade(vec2 p, vec2 uv) {
+  vec2 q = p + uOff + uSeed * 91.0;
+  // ragged, painted edges: warp the lookup a little (wavy plus fine bristle streaks)
+  vec2 wv = vec2(fbm(q * 0.03, 3), fbm(q * 0.03 + 17.0, 3)) * 3.2
+          + vec2(snoise(q * vec2(0.2, 0.045)), snoise(q * vec2(0.045, 0.2) + 9.0)) * 1.3;
+  uv += wv / uDim;
   vec4 c = texture(uSrc, uv);
   if (c.a < 0.002) return c;
   vec3 col = c.rgb / c.a;
   float L = luma(col);
   float d = clamp((0.92 - L) / 0.88, 0.0, 1.0);          // ink density
   float rock = smoothstep(0.06, 0.2, d) * (1.0 - smoothstep(0.75, 0.9, L) * 0.0);
-  vec2 q = p + uOff + uSeed * 91.0;
   float mott = fbm(q * 0.0045, 3) * 0.75 + fbm(q * 0.015, 3) * 0.25;
   float blot = fbm(q * vec2(0.03, 0.018) + 3.0, 4);
   float st = streaks(q * 0.09, vec2(0.0, 1.0), 7.0, 3);
   float gr = vnoise(q * 0.9) * 0.55 + vnoise(q * 2.3 + 4.0) * 0.45;
-  float dd = d * (1.0 + 0.42 * mott + 0.18 * st);
+  float dd = d * (1.0 + 0.42 * mott + 0.08 * st);
   dd += smoothstep(0.15, 0.4, blot) * 0.12 * smoothstep(0.2, 0.55, d);
   dd -= smoothstep(0.2, 0.45, -blot) * 0.15 * (1.0 - d);
   float mid = 4.0 * dd * (1.0 - dd);
@@ -372,6 +401,10 @@ vec4 shade(vec2 p, vec2 uv) {
   b /= 8.0;
   float db = clamp((0.92 - luma(b.a > 0.0 ? b.rgb / b.a : vec3(0.92))) / 0.88, 0.0, 1.0);
   dd = clamp(dd + max(0.0, dd - db) * 0.6 * rock, 0.0, 1.0);
+  // dry brush: where the rock meets lighter snow above it, the ink breaks into streaks
+  float lit = clamp((db - d) * -1.0, 0.0, 1.0);
+  float dry = smoothstep(0.5, 0.78, vnoise(q * vec2(0.32, 0.045)) * 0.7 + vnoise(q * vec2(0.9, 0.12) + 5.0) * 0.3);
+  dd = mix(dd, dd * 0.12, smoothstep(0.04, 0.25, lit) * dry * rock * 0.85);
   float Lt = 0.92 - dd * 0.88;
   vec3 o = mix(col * (Lt / max(L, 0.02)), Lt * vec3(1.01, 0.995, 0.975), rock * 0.5);
   o *= 1.0 - 0.025 * (1.0 - rock) * (gr - 0.5);
@@ -387,7 +420,7 @@ export function bakeSnowCliff(api, rect, masses, { scale = 1, seed = 1, after = 
     masses.forEach((M, i) => { info.push(paintMass(ctx, k, api, M, seed * 100 + i)); if (M.after) M.after(ctx); });
     if (after) after(ctx, k);
   }, { scale });
-  const out = api.processTex(src, FINISH, { uniforms: { uSeed: seed % 7, uOff: [rect[0], rect[1]] } });
+  const out = api.processTex(src, FINISH, { uniforms: { uSeed: seed % 7, uOff: [rect[0], rect[1]], uDim: [rect[2], rect[3]] } });
   api.engine?.freeTex?.(src);
   console.warn('s06 snowcliff ms', Math.round(performance.now() - t0));
   return { src: out, rect, info };

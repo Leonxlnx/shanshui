@@ -24,7 +24,7 @@ export function roughen(pts, nz, { step = 5, amp = 4, freq = 0.06, seed = 0 } = 
   return out;
 }
 
-export function paintRock(ctx, r, nz, pts0, { v = 0.35, lit = 0.35, streak = 1, contour = 1, shade = 1, paper = PAPER, dots = 1, angle = 0, rough = 4, base = 0.15 } = {}) {
+export function paintRock(ctx, r, nz, pts0, { v = 0.35, lit = 0.35, streak = 1, contour = 1, shade = 1, paper = PAPER, dots = 1, angle = 0, rough = 4, base = 0.15, facets = 0, wet = 0 } = {}) {
   const ink = (vv, a) => rgba(toneRGB(Math.min(1, Math.max(0, vv)), paper), a);
   const pts = rough > 0 ? roughen(pts0, nz, { amp: rough, seed: r() * 50 }) : pts0;
   let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
@@ -62,6 +62,28 @@ export function paintRock(ctx, r, nz, pts0, { v = 0.35, lit = 0.35, streak = 1, 
     const p = [[x, y], [x + Math.sin(a) * L * 0.5 + r.range(-2, 2), y + L * 0.5], [x + Math.sin(a) * L, y + L]];
     if (r() < 0.55) stroke(ctx, p, { width: [r.range(0.8, 2.6), 0.4], profile: 'taper', color: ink(v - 0.2 * r(), r.range(0.45, 0.9)), rng: r, rough: 0.4 });
     else dryStroke(ctx, p, { width: r.range(3, 8), bristles: 4, color: ink(v - 0.1, 0.5), alpha: 0.45, dry: 0.5, rng: r, noise: nz });
+  }
+  // round 2: internal fold lines (facets) with a wash on their shaded side, so the rock reads as planes
+  const nf = Math.round(facets * Math.max(1, W / 70));
+  for (let i = 0; i < nf; i++) {
+    const xs = x0 + W * r.range(0.12, 0.88);
+    let ys = y1; for (const [px, py] of pts) if (Math.abs(px - xs) < 8 && py < ys) ys = py;
+    if (ys > y1 - 12) continue;
+    const L = (y1 - ys) * r.range(0.35, 0.85), lean = r.range(-0.4, 0.4);
+    const fp = [];
+    for (let s = 0; s <= 1.001; s += 0.2) fp.push([xs + lean * L * s + nz.n2(xs * 0.05 + s * 2, i + 3.3) * 7 * s, ys + 1 + L * s]);
+    withBlur(ctx, 3, (gg) => {
+      const poly = new Path2D();
+      fp.forEach((p, j) => (j ? poly.lineTo(p[0], p[1]) : poly.moveTo(p[0], p[1])));
+      for (let j = fp.length - 1; j >= 0; j--) poly.lineTo(fp[j][0] + shade * (6 + 16 * j / (fp.length - 1)), fp[j][1] + 3);
+      poly.closePath();
+      gg.fillStyle = ink(v - 0.12, r.range(0.25, 0.5)); gg.fill(poly);
+    });
+    stroke(ctx, fp.slice(0, 3 + ((r() * 4) | 0)), { width: [r.range(1.6, 3.6), 0.5], profile: 'taper', color: ink(0.06, r.range(0.6, 0.9)), rng: r, rough: 0.6 });
+  }
+  // crisp wet ink blots (texture inside the planes)
+  for (let i = 0, n = Math.round(W * H / 1500 * wet); i < n; i++) {
+    blob(ctx, x0 + r() * W, y0 + H * Math.pow(r(), 0.8), r.range(1.8, 6.5), { color: ink(v - 0.18 + 0.12 * r(), r.range(0.35, 0.75)), rng: r, irregular: 0.6, squash: r.range(0.45, 0.9), rot: r.range(-0.5, 0.5) });
   }
   // moss dots on top edges
   for (let i = 0, n = Math.round(W / 4 * dots); i < n; i++) {

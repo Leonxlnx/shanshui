@@ -19,7 +19,7 @@ export function topOf(outline) {
   };
 }
 
-export function paintCliffFace(ctx, r, nz, { outline, hole, columns, tone = 0.9, veil = 0.4, fade = [900, 1060], paper = PAPER, k = 1, moss = 1, stipple = 1, skipTop = [], caps = 0 }) {
+export function paintCliffFace(ctx, r, nz, { outline, hole, columns, tone = 0.9, veil = 0.4, fade = [900, 1060], paper = PAPER, k = 1, moss = 1, stipple = 1, skipTop = [], caps = 0, dabs = 0 }) {
   const ink = (v, a) => rgba(toneRGB(Math.min(1, Math.max(0, v)), paper), a);
   const vD = 1 - tone;
   const topAt = topOf(outline);
@@ -51,6 +51,17 @@ export function paintCliffFace(ctx, r, nz, { outline, hole, columns, tone = 0.9,
     const gg = ctx.createLinearGradient(c.x + 2, 0, c.x - w, 0);
     gg.addColorStop(0, ink(vD, a)); gg.addColorStop(0.35, ink(vD, a * 0.55)); gg.addColorStop(1, ink(vD, 0));
     ctx.fillStyle = gg; ctx.fill(poly);
+    // dark wet core of the cleft (broad, not a hairline)
+    if (dabs > 0) {
+      const cw = (c.crack ?? 4) * 2.2 + 4, core = new Path2D();
+      core.moveTo(c.x - cw, t); core.lineTo(c.x + 3, t);
+      for (let s = 0; s <= 1.001; s += 0.2) core.lineTo(c.x + 3 + nz.n2(c.x / 37, s * 3) * 8 * s, t + len * 0.85 * s);
+      for (let s = 1; s >= -0.001; s -= 0.2) core.lineTo(c.x - cw * (1 - 0.6 * s) + nz.n2(c.x / 37, s * 3) * 8 * s, t + len * 0.85 * s);
+      core.closePath();
+      const gc = ctx.createLinearGradient(0, t, 0, t + len * 0.85);
+      gc.addColorStop(0, ink(vD * 0.6, Math.min(0.85, a * 0.9))); gc.addColorStop(0.6, ink(vD * 0.6, a * 0.45)); gc.addColorStop(1, ink(vD, 0));
+      ctx.fillStyle = gc; ctx.fill(core);
+    }
   }
   ctx.restore();
   // mottled stipple
@@ -65,6 +76,29 @@ export function paintCliffFace(ctx, r, nz, { outline, hole, columns, tone = 0.9,
     const p = (0.15 + 0.6 * Math.max(0, 1 - (y - t) / 220) + 0.4 * Math.max(0, 1 - dc / 30)) * (0.45 + 0.9 * nz.fbm2(x / 30, y / 22, 3));
     if (r() > p) continue;
     blob(ctx, x, y, (1.4 + 4 * r() * r()), { color: ink(vD * (0.8 + 0.4 * r()), r.range(0.06, 0.2)), rng: r, irregular: 0.55, squash: r.range(1, 2.4), sides: 7 });
+  }
+  // round 2: dark vertical dabs (raindrop texture) clustered by a noise field, densest under the
+  // column heads and along the crevices, so the faces read mottled dark grey instead of plastered
+  {
+    const N2 = Math.round(area / 260 * dabs);
+    for (let i = 0; i < N2; i++) {
+      const x = r.range(X0, X1), t = topAt(x);
+      if (t > Y1) continue;
+      const y = t + Math.pow(r(), 1.6) * (Y1 - t);
+      let dc = 1e9;
+      for (const c of columns) dc = Math.min(dc, Math.abs(x - c.x + 14));
+      const f = nz.fbm2(x / 26 + 7.7, y / 40, 3);
+      const p = (0.08 + 0.55 * Math.max(0, 1 - (y - t) / 260) + 0.5 * Math.max(0, 1 - dc / 40)) * Math.max(0, 0.2 + 1.6 * f);
+      if (r() > p) continue;
+      const rr = 1 + 2.4 * r() * r();
+      blob(ctx, x, y, rr, { color: ink(vD * (0.55 + 0.35 * r()), r.range(0.22, 0.6)), rng: r, irregular: 0.55, squash: r.range(1.5, 3.2), rot: r.range(-0.25, 0.25), sides: 6 });
+    }
+    // a few horizontal fractures across the columns
+    for (let i = 0; i < Math.round(columns.length * 3 * dabs); i++) {
+      const c = columns[(r() * columns.length) | 0];
+      const x = c.x - r.range(10, 50), y = topAt(x) + r.range(30, (c.len ?? 260) * 0.8), L = r.range(10, 26);
+      stroke(ctx, [[x, y], [x + L * 0.5, y + r.range(-2, 3)], [x + L, y + r.range(1, 6)]], { width: [r.range(1, 2.2), 0.4], profile: 'taper', color: ink(vD * 0.6, r.range(0.35, 0.7)), rng: r, rough: 0.6 });
+    }
   }
   // crevices: long black wavering cracks with a few side cracks
   for (const c of columns) {

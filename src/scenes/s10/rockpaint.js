@@ -14,7 +14,7 @@ function crossX(poly, y) {
   }
   return xs.sort((p, q) => p - q);
 }
-function crossY(poly, x) {
+export function crossY(poly, x) {
   const ys = [];
   for (let i = 0, n = poly.length; i < n; i++) {
     const a = poly[i], b = poly[(i + 1) % n];

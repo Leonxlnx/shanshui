@@ -1,6 +1,5 @@
 // Scene registry: id -> module loader. Order here is reference order (ref/01..10).
 export const SCENES = {
-  s00: () => import('./s00-test.js'),
   s01: () => import('./s01-cranes-falls.js'),
   s02: () => import('./s02-golden-river.js'),
   s03: () => import('./s03-moon-lake.js'),

@@ -91,19 +91,37 @@ function paintMountain(ctx, api, P, paper, k) {
   if (P.knobs) {
     g.save(); g.filter = `blur(${(9 * k).toFixed(2)}px)`;
     const bandP = new Path2D(); top.forEach((p, j) => (j ? bandP.lineTo(p[0], p[1] + 10) : bandP.moveTo(p[0], p[1] + 10)));
-    g.lineWidth = 34; g.lineJoin = 'round'; g.strokeStyle = ink(vD, 0.3 * bo); g.stroke(bandP);
+    g.lineWidth = 34; g.lineJoin = 'round'; g.strokeStyle = ink(vD, (P.band ?? 0.3) * bo); g.stroke(bandP);
     g.restore();
   }
   // ridge mode: each knob gets its own soft summit wash and a shadowed left flank (rounded rock masses)
   if (P.knobs) for (const kb of P.knobs) {
     const kw = kb.w * (P.knobW ?? 1), hk = P.base - kb.top;
-    for (const [dx, dy, rad, al] of [[0, 0.12, 0.55, 0.45], [-0.32, 0.3, 0.35, 0.4], [r.range(0.1, 0.3), 0.35, 0.25, 0.25]]) {
+    for (const [dx, dy, rad, al, sy] of [[0, 0.12, 0.55, 0.45, 0.55], [-0.32, 0.3, 0.35, 0.4, 0.55], [r.range(0.1, 0.3), 0.35, 0.25, 0.25, 0.55], [r.range(0.3, 0.45), 0.42, 0.3, 0.55 * (P.shadow ?? 0), 1.6]]) {
+      if (al <= 0) continue;
       const cx = kb.x + dx * kw, cy = kb.top + dy * hk, R = rad * kw;
-      g.save(); g.translate(cx, cy); g.scale(1, 0.55);
+      g.save(); g.translate(cx, cy); g.scale(1, sy);
       const rg = g.createRadialGradient(0, 0, 0, 0, 0, R);
       rg.addColorStop(0, ink(vD, al * bo * 0.5)); rg.addColorStop(0.6, ink(vD, al * bo * 0.22)); rg.addColorStop(1, ink(vD, 0));
       g.fillStyle = rg; g.fillRect(-R, -R, 2 * R, 2 * R); g.restore();
     }
+  }
+  // ridge mode, round 2: mottled wet patches over the rock body (breaks the flat card-like grey)
+  const dMax = P.fadeLocal ? P.fadeLocal[1] * 0.85 : H * 0.6;
+  if (P.knobs && (P.slope ?? 0) > 0) {
+    g.save(); g.filter = `blur(${(6 * k).toFixed(2)}px)`;
+    const nM = Math.round((x1 - x0) / 7 * P.slope);
+    for (let i = 0; i < nM; i++) {
+      const x = x0 + r() * (x1 - x0); if (hT(x) < 0.25) continue;
+      const y = sil(x) + 6 + Math.pow(r(), 1.3) * dMax;
+      blob(g, x, y, r.range(7, 22), { color: ink(vD, r.range(0.1, 0.32)), rng: r, irregular: 0.6, squash: r.range(1.3, 2.4), rot: 1.57 + r.range(-0.3, 0.3) });
+    }
+    for (let i = 0; i < nM * 0.4; i++) {            // pale lit planes (paper showing through)
+      const x = x0 + r() * (x1 - x0); if (hT(x) < 0.3) continue;
+      const y = sil(x) + 14 + Math.pow(r(), 1.2) * dMax * 0.8;
+      blob(g, x, y, r.range(8, 20), { color: rgba(paper, r.range(0.25, 0.5)), rng: r, irregular: 0.6, squash: r.range(1.4, 2.6), rot: 1.57 + r.range(-0.3, 0.3) });
+    }
+    g.restore();
   }
   // creases and shadow faces
   const fs = (P.knobs ? 34 : W * 0.05) * P.fold;
@@ -176,6 +194,37 @@ function paintMountain(ctx, api, P, paper, k) {
     const pts = [[x, y], [x + Math.sin(ang) * L * 0.5 + r.range(-1, 1), y + Math.cos(ang) * L * 0.5], [x + Math.sin(ang) * L, y + Math.cos(ang) * L]];
     stroke(g, pts, { width: [(0.8 + 2.2 * r()) * sc + 0.3, 0.4], profile: 'taper', color: ink(vD * (0.8 + 0.2 * r()), (0.18 + 0.5 * near) * r.range(0.6, 1)), rng: r, rough: 0.5 });
   }
+  // ridge mode, round 2: rounded tree clumps (dian dots over a soft underlay) scattered down the slopes
+  if (P.knobs && (P.slope ?? 0) > 0) {
+    const clump = (x, y, R) => {
+      g.save(); g.filter = `blur(${(3 * k).toFixed(2)}px)`;
+      blob(g, x, y + R * 0.2, R * 1.25, { color: ink(vD * 0.85, r.range(0.3, 0.48)), rng: r, irregular: 0.5, squash: 0.7 });
+      g.filter = `blur(${(0.9 * k).toFixed(2)}px)`;          // soft dian dots (ref: no crisp specks at this distance)
+      const n = 4 + ((r() * R * 0.8) | 0);
+      for (let j = 0; j < n; j++) {
+        const a = r() * 6.283, d = Math.sqrt(r()) * R;
+        blob(g, x + Math.cos(a) * d, y + Math.sin(a) * d * 0.7 - R * 0.15, r.range(1.8, 4.2), { color: ink(vD * r.range(0.6, 0.9), r.range(0.35, 0.65)), rng: r, irregular: 0.4, squash: 0.75 });
+      }
+      g.restore();
+    };
+    const nCl = Math.round((x1 - x0) / 60 * P.slope);
+    for (let i = 0; i < nCl; i++) {
+      const x = x0 + r() * (x1 - x0); if (hT(x) < 0.3) continue;
+      if (nz.n2(x / 70, 4.4) < -0.3) continue;
+      const dd = Math.pow(r(), 1.5) * dMax * 0.8;
+      clump(x, sil(x) + 5 + dd, r.range(6, 15) * (1 - 0.35 * dd / dMax));
+    }
+    // clumps follow the spurs down from the ridge (along the creases), overlapping into masses
+    for (const f of folds) {
+      if (f.hf < 0.3 || r() > 0.75 * P.slope) continue;
+      const m = 3 + ((r() * 4) | 0);
+      for (let q = 0; q < m; q++) {
+        const s = Math.pow(q / m + r() * 0.12, 1.2) * 0.6, p = f.pts[Math.round(s * (f.pts.length - 1))];
+        if (p[1] - sil(p[0]) > dMax) continue;
+        clump(p[0] + r.range(-7, 5), p[1] + r.range(-3, 3), r.range(8, 17) * (1 - 0.45 * s));
+      }
+    }
+  }
   // foliage clumps along the upper ridge and at crease heads
   for (let x = x0; x <= x1; x += 3.5 * sc) {
     const hf = hT(x);
@@ -210,8 +259,9 @@ function paintMountain(ctx, api, P, paper, k) {
   const flush = () => {
     if (seg.length > 3) {
       const cv0 = Math.min(1, vD * 0.95);
-      dryStroke(g, seg, { width: (2.6 + 1.6 * r()) * sc + 0.6, bristles: 5, color: ink(cv0, 0.7), alpha: 0.7, dry: 0.35, rng: r, noise: nz });
-      if (vD < 0.4) stroke(g, seg, { width: 0.9 * sc + 0.4, profile: 'brush', color: ink(cv0, 0.6), rng: r, rough: 0.5 });
+      const ca = P.contour ?? 1;
+      dryStroke(g, seg, { width: (2.6 + 1.6 * r()) * sc + 0.6, bristles: 5, color: ink(cv0, 0.7 * ca), alpha: 0.7 * ca, dry: 0.35, rng: r, noise: nz });
+      if (vD < 0.4) stroke(g, seg, { width: 0.9 * sc + 0.4, profile: 'brush', color: ink(cv0, 0.6 * ca), rng: r, rough: 0.5 });
     }
     seg = [];
   };
@@ -274,7 +324,7 @@ function knobSpan(P) {
 export function makeMountains(api, o) {
   const rect = o.rect;
   const paper = o.paper || PAPER;
-  const D = { tone: o.tone ?? 0.5, a: o.a ?? 2.0, b: o.b ?? 1.15, fold: 1, trees: o.trees ?? 0.5, treeH: o.treeH ?? 18, fade: o.fade ?? [0.35, 1.0], rough: o.rough ?? 1, foot: o.foot ?? 0.15, knobW: o.knobW, roughW: o.roughW, crease: o.crease ?? 1, moss: o.moss ?? 1, cun: o.cun ?? 1, body: o.body ?? 1, base: o.base ?? 800 };
+  const D = { tone: o.tone ?? 0.5, a: o.a ?? 2.0, b: o.b ?? 1.15, fold: 1, trees: o.trees ?? 0.5, treeH: o.treeH ?? 18, fade: o.fade ?? [0.35, 1.0], rough: o.rough ?? 1, foot: o.foot ?? 0.15, knobW: o.knobW, roughW: o.roughW, crease: o.crease ?? 1, band: o.band, contour: o.contour, slope: o.slope, shadow: o.shadow, moss: o.moss ?? 1, cun: o.cun ?? 1, body: o.body ?? 1, base: o.base ?? 800 };
   const T0 = performance.now();
   const raw = api.bakeCanvas(rect[2], rect[3], (ctx, { k }) => {
     ctx.translate(-rect[0], -rect[1]);

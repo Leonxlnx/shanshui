@@ -5,6 +5,7 @@
 import { stroke, dryStroke, blob, rgba, tone, noisePattern, PAPER } from '../../lib/brush.js';
 import { paintMoss } from '../../lib/rock.js';
 import { makeRng, makeNoise, clamp, mix, smoothstep } from '../../engine/rng.js';
+import { paintBoulder } from './boulder.js';
 
 function crossX(poly, y) {
   const xs = [];
@@ -103,8 +104,8 @@ export function paintRock(ctx, R, k = 1, paper = PAPER) {
       const gx = fg.createLinearGradient(lightL ? a : b, 0, lightL ? b : a, 0);
       const fv = face + (nz.n2(i * 3.1 + seed, y * 0.004) * (R.facetVar ?? 0.08)) - (R.facetVar ? (R.facetVar * 0.6) * (0.5 + 0.5 * Math.sin(i * 2.7 + seed)) : 0);
       gx.addColorStop(0, rgba(tone(fv, paper), 1));
-      gx.addColorStop(0.55, rgba(tone(fv - 0.05, paper), 1));
-      gx.addColorStop(0.85, rgba(tone(mix(fv, shade, 0.55), paper), 1));
+      gx.addColorStop(R.sharp ? 0.72 : 0.55, rgba(tone(fv - 0.05, paper), 1));
+      gx.addColorStop(R.sharp ? 0.9 : 0.85, rgba(tone(mix(fv, shade, 0.55), paper), 1));
       gx.addColorStop(1, rgba(tone(shade, paper), 1));
       fg.fillStyle = gx;
       fg.fillRect(a, y, b - a, rowH + 0.6);
@@ -165,7 +166,7 @@ export function paintRock(ctx, R, k = 1, paper = PAPER) {
     const u = facetU(x, y);
     const depth = clamp((y - t0) / 260, 0, 1);
     if (rng() > (R.texLit ?? 0.25) + 0.75 * u * (1 - 0.5 * depth)) continue;
-    const len = 8 + rng() * 40;
+    const len = (8 + rng() * 40) * (R.texLen ?? 1);
     const v = clamp(Math.min(face - 0.04, mix(R.texLight ?? 0.5, 0.02, u * u)) + (rng() - 0.5) * 0.3, 0.0, 0.75);
     const sl = slant + (rng() - 0.5) * 0.2;
     const tp = [[x, y], [x + sl * len * 0.5 + (rng() - 0.5) * 3, y + len * 0.5], [x + sl * len + (rng() - 0.5) * 3, y + len]];
@@ -180,7 +181,7 @@ export function paintRock(ctx, R, k = 1, paper = PAPER) {
     if (t0 == null || y < t0) continue;
     const u = facetU(x, y);
     if (u < 0.5 || rng() > smoothstep(0.5, 1.0, u)) continue;
-    const len = 8 + rng() * 34;
+    const len = (8 + rng() * 34) * (R.shLen ?? 1);
     const sl = slant + (rng() - 0.5) * 0.25;
     dryStroke(g, [[x, y], [x + sl * len * 0.5, y + len * 0.5], [x + sl * len, y + len]], { width: 4 + rng() * 9, bristles: 4 + ((rng() * 4) | 0), color: tone(rng() * 0.2, paper), alpha: 0.55 + rng() * 0.4, dry: 0.25 + rng() * 0.3, rng });
   }
@@ -327,7 +328,7 @@ export function bakeS08Rocks(api, rect, rocks, { paper = PAPER, scale = 1 } = {}
   const info = [];
   const src = api.bakeCanvas(rect[2], rect[3], (ctx, { k }) => {
     ctx.translate(-rect[0], -rect[1]);
-    for (const R of rocks) info.push(paintRock(ctx, R, k, paper));
+    for (const R of rocks) info.push(R.lumps ? paintBoulder(ctx, R, k, paper) : paintRock(ctx, R, k, paper));
   }, { scale });
   return { src, rect, info };
 }

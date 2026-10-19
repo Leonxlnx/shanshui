@@ -283,7 +283,7 @@ export class Engine {
     setUniforms(gl, pp, { uSize: [W, H] });
     drawQuad(gl);
     this.paperTex = paper;
-    this.defaultGrade = { exposure: 1, contrast: 1, saturation: 1, paper: 0.045, tint: [1, 1, 1], lift: [0.93, 0.9, 0.84, 0], vignette: 0.10, dither: 1.0, ink: [0, 0, 1.6, 0] };
+    this.defaultGrade = { exposure: 1, contrast: 1, saturation: 1, paper: 0.045, tint: [1, 1, 1], lift: [0.93, 0.9, 0.84, 0], vignette: 0.10, dither: 1.0, ink: [0.32, 0.42, 1.4, 0] };
     this.gradeOverride = null;   // tools can force grade values (e.g. to A/B the ink pass)
   }
 

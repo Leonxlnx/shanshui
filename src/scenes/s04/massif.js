@@ -82,7 +82,9 @@ function ribbon(g, pts, width, a, rng, rough = 0.4, prof = 'brush') {
 export function paintSoftPine(g, w, x, y, h, o, rng) {
   const wm = o.width ?? 1;
   const lean = o.lean ?? (rng() - 0.5) * 0.3;
-  const n = o.tiers ?? (h < 28 ? 3 + ((rng() * 1.6) | 0) : 4 + ((rng() * 2.6) | 0));
+  // two kinds as in ref 04: dense conical tiered pines (most) and flat umbrella pines
+  const cone = o.cone ?? (!o.tiers && rng() < 0.6);
+  const n = o.tiers ?? (cone ? (h < 28 ? 3 + ((rng() * 1.6) | 0) : 4 + ((rng() * 2.6) | 0)) : h < 28 ? 2 + ((rng() * 1.6) | 0) : 3 + ((rng() * 1.8) | 0));
   const topX = x + lean * h, topY = y - h;
   const bend = (rng() - 0.5) * h * 0.14;
   const ns = clamp(h / 55, 0.45, 1.5);
@@ -92,41 +94,54 @@ export function paintSoftPine(g, w, x, y, h, o, rng) {
   g.strokeStyle = o.ink;
   for (let i = 0; i < n; i++) {
     const f = n === 1 ? 1 : i / (n - 1);
-    const ty = y - h * (0.34 + 0.6 * f) + (rng() - 0.5) * h * 0.04;
+    const ty = y - h * (cone ? 0.2 + 0.72 * f : 0.3 + 0.62 * f) + (rng() - 0.5) * h * 0.04;
     const tx = trunkX((y - ty) / h);
-    const half = h * wm * (0.3 * Math.pow(1 - f, 0.9) + 0.07) * (0.75 + 0.5 * rng());
+    // cone: tiers shrink upward and overlap; umbrella: similar widths, broad flat top, pads thrown to alternate sides
+    const half = h * wm * (cone ? 0.3 * Math.pow(1 - f, 0.9) + 0.08 : 0.21 + 0.13 * (1 - f) + (i === n - 1 ? 0.06 : 0)) * (0.8 + 0.4 * rng());
     side = rng() < 0.7 ? -side : side;
-    const off = side * half * (0.08 + 0.35 * rng());
-    const th = h * (0.1 + 0.05 * rng());
+    const off = side * half * (cone ? 0.04 + 0.18 * rng() : i === n - 1 ? 0.1 * rng() : 0.15 + 0.35 * rng());
+    const th = h * (0.13 + 0.06 * rng());
     const cx = tx + off;
     if (Math.abs(off) > half * 0.2) ribbon(g, [[tx, ty + th * 0.35], [mix(tx, cx, 0.6), ty + th * 0.15], [cx, ty + th * 0.05]], Math.max(0.7, h * 0.026), 0.85, rng, 0.3, 'taper');
-    // soft body
-    dab(w, cx, ty - th * 0.3, half * 0.9, 0.6 * (o.wetA ?? 1), rng, clamp(th / half, 0.2, 0.5), (rng() - 0.5) * 0.15, 0.25);
-    // needle tufts, dense at the top edge, flat bottom
-    const m = Math.max(10, Math.round((half * th) / (1.25 * ns * ns)));
-    const TB = buckets([0.4, 0.65, 0.92]);
-    for (let j = 0; j < m; j++) {
-      const a = rng() * 2 - 1;
-      const v = Math.pow(rng(), 0.55);
-      const dome = 0.25 + 0.95 * Math.pow(Math.max(0, 1 - a * a), 0.5);
-      dab(TB, cx + a * half * 0.95, ty + th * 0.2 - v * th * dome, (1.2 + rng() * 1.8) * ns * (0.7 + 0.5 * v), 0.3 + 0.7 * Math.pow(v, 1.3), rng, 0.45, Math.PI / 2 + a * 0.6 + (rng() - 0.5) * 0.6, 0.4);
+    // the pad is a row of 1-4 bristly sub-domes (bumpy top edge, outer clumps droop, gaps between)
+    const nsub = clamp(Math.round(half / (h * 0.11 + 3)), 1, 4);
+    for (let k = 0; k < nsub; k++) {
+      const u = nsub === 1 ? 0 : (k / (nsub - 1)) * 2 - 1;
+      const sx = cx + u * half * 0.62 + (rng() - 0.5) * half * 0.12;
+      const sh = half * (nsub === 1 ? 1 : 0.5 + 0.22 * rng()) * (1 - 0.2 * Math.abs(u));
+      const sth = th * (0.75 + 0.45 * rng()) * (1 - 0.25 * Math.abs(u));
+      const sy = ty + Math.abs(u) * th * 0.3 + (rng() - 0.5) * th * 0.3;
+      softPad(g, w, sx, sy, sh, sth, ns, o, rng);
     }
-    flush(g, TB);
-    // bristle ticks along the dome
-    g.globalAlpha = 0.75;
-    g.lineWidth = 0.75 * ns;
-    g.beginPath();
-    const mt = Math.round(half / (1.4 * ns));
-    for (let j = 0; j < mt; j++) {
-      const a = rng() * 2 - 1;
-      const ex = cx + a * half, ey = ty + th * 0.2 - th * (0.25 + 0.95 * Math.pow(Math.max(0, 1 - a * a), 0.5));
-      const ang = -Math.PI / 2 + a * 1.2 + (rng() - 0.5) * 0.6;
-      const len = (1.5 + rng() * 3) * ns;
-      g.moveTo(ex - Math.cos(ang) * len * 0.4, ey - Math.sin(ang) * len * 0.4);
-      g.lineTo(ex + Math.cos(ang) * len, ey + Math.sin(ang) * len);
-    }
-    g.stroke();
   }
+}
+function softPad(g, w, cx, ty, half, th, ns, o, rng) {
+  // soft body
+  dab(w, cx, ty - th * 0.3, half * 0.9, 0.6 * (o.wetA ?? 1), rng, clamp(th / half, 0.25, 0.6), (rng() - 0.5) * 0.15, 0.25);
+  // needle tufts, dense at the top edge, flat bottom
+  const m = Math.max(8, Math.round((half * th) / (1.25 * ns * ns)));
+  const TB = buckets([0.4, 0.65, 0.92]);
+  for (let j = 0; j < m; j++) {
+    const a = rng() * 2 - 1;
+    const v = Math.pow(rng(), 0.55);
+    const dome = 0.25 + 0.95 * Math.pow(Math.max(0, 1 - a * a), 0.5);
+    dab(TB, cx + a * half * 0.95, ty + th * 0.2 - v * th * dome, (1.2 + rng() * 1.8) * ns * (0.7 + 0.5 * v), 0.3 + 0.7 * Math.pow(v, 1.3), rng, 0.45, Math.PI / 2 + a * 0.6 + (rng() - 0.5) * 0.6, 0.4);
+  }
+  flush(g, TB);
+  // bristle ticks along the dome
+  g.globalAlpha = 0.75;
+  g.lineWidth = 0.75 * ns;
+  g.beginPath();
+  const mt = Math.round(half / (1.1 * ns));
+  for (let j = 0; j < mt; j++) {
+    const a = rng() * 2 - 1;
+    const ex = cx + a * half, ey = ty + th * 0.2 - th * (0.25 + 0.95 * Math.pow(Math.max(0, 1 - a * a), 0.5));
+    const ang = -Math.PI / 2 + a * 1.2 + (rng() - 0.5) * 0.6;
+    const len = (1.5 + rng() * 3) * ns;
+    g.moveTo(ex - Math.cos(ang) * len * 0.4, ey - Math.sin(ang) * len * 0.4);
+    g.lineTo(ex + Math.cos(ang) * len, ey + Math.sin(ang) * len);
+  }
+  g.stroke();
 }
 
 /**
@@ -223,9 +238,10 @@ export function paintMassif(ctx, api, o) {
   const faceGeom = (f, y) => {
     const v = (y - f.y) / f.len;
     const hw = f.w * 0.5 * Math.pow(clamp(v * (f.blunt ?? 1.7)), f.blunt ? 0.45 : 0.8) * (1 + 0.12 * clamp(v));
-    return { v, hw, cx: f.x + f.lean * (y - f.y) };
+    return { v, hw, cx: f.x + f.lean * (y - f.y) + (f.bow ?? 1) * 9 * sc * nz.n2(f.x / 50 + 7, y / (160 * sc)) * clamp(v * 2) };
   };
   // ---- shading field: 0 lit .. 1 dark
+  const sideK = o.sideDark ?? 0.2;
   const life = (x, y) => 1 - sstep(fadeY, base, y + nz.n2(x / 70, y / 50 + 3) * 30);
   const shadeAt = (x, y) => {
     const dy = y - surfY(x);
@@ -234,6 +250,7 @@ export function paintMassif(ctx, api, o) {
     const crev = 1 - Math.abs(nz.n2(xw / (24 * sc), 5.1 + y / (700 * sc)));
     let s = 0.52 + 0.22 * band * (o.band ?? 1) + 0.18 * nz.fbm2(x / (55 * sc), y / (120 * sc), 2) + 0.4 * sstep(0.8, 0.97, crev) + (o.dark ?? 0) + (o.darkX ? o.darkX[2] * sstep(o.darkX[0], o.darkX[1], x) : 0);
     s += 0.45 * Math.exp(-dy / (42 * sc)) - 0.12 * clamp(dy / H);   // dark under the crown, lighter low down
+    s += sideK * (1 - sstep(0, 0.6, (x - x0) / Math.max(1, x1 - x0) + 0.12 * nz.n2(y / (60 * sc), 2.9)));   // light from the right: shadowed left flank
     for (const z of o.zones || []) {   // art-directed value zones [x, y, rx, ry, amount], ragged edges
       const zx = (x - z[0]) / z[2], zy = (y - z[1]) / z[3];
       const d = zx * zx + zy * zy;
@@ -289,16 +306,16 @@ export function paintMassif(ctx, api, o) {
   const WB = buckets([0.06, 0.1, 0.14, 0.18, 0.23, 0.29, 0.36, 0.44, 0.55, 0.7]);
   const MB = buckets([0.2, 0.32, 0.45, 0.58, 0.7, 0.82, 0.95]);
   const FB = buckets([0.3, 0.45, 0.6, 0.75, 0.9]);
-  const nS = Math.round(area / (45 * sc * sc) * (o.wash ?? 1));
+  const nS = Math.round(area / (45 * sc * sc) * (o.wash ?? 1) * (o.blots ?? 0.45));
   for (let i = 0; i < nS; i++) {
     const q = sample(); if (!q) continue;
     const [x, y] = q;
     const s = shadeAt(x, y) * life(x, y);
     if (rng() > s * 1.25) continue;
-    const r = (4 + rng() * 9) * sc;
+    const r = (5 + rng() * 11) * sc;
     let lean = (rng() - 0.5) * 0.15;
     for (const f of F) if (Math.abs(x - f.x) < f.w) lean = f.lean + (rng() - 0.5) * 0.08;
-    dab(WB, x, y, r, (0.08 + 0.36 * s * s) * (o.washAlpha ?? 1), rng, 0.32 + rng() * 0.2, Math.PI / 2 + lean, 0.4);
+    dab(WB, x, y, r, (0.08 + 0.36 * s * s) * (o.washAlpha ?? 1), rng, 0.2 + rng() * 0.16, Math.PI / 2 + lean, 0.4);
   }
   // shadow crevice beside each face's dark contour
   for (const f of F) {
@@ -318,7 +335,7 @@ export function paintMassif(ctx, api, o) {
     const [x, y] = q;
     const s = shadeAt(x, y) * life(x, y);
     const patch = sstep(-0.3, 0.4, nz.fbm2(x / (17 * sc) + 11, y / (52 * sc), 2));
-    if (rng() > Math.pow(s, 2.2) * (0.15 + 0.85 * patch) * 1.4) continue;
+    if (rng() > sstep(0.5, 0.92, s) * (0.15 + 0.85 * patch) * 1.4) continue;
     const r = (1.1 + rng() * 2.6) * sc * (0.7 + 0.5 * s);
     const n = 2 + ((rng() * 4) | 0);
     const a = (0.3 + rng() * 0.6) * (0.4 + 0.6 * s);
@@ -347,8 +364,9 @@ export function paintMassif(ctx, api, o) {
   g.filter = `blur(${(1.6 * sc * k).toFixed(2)}px)`;
   g.drawImage(wc, 0, 0);
   g.restore();
-  // crisp dry-brush texture: thresholded vertical streak noise whose coverage grows with the shade
-  // field, so shadow sides break into sharp wet-on-dry blotches and lit planes keep a few specks
+  // cun texture + continuous shade wash in one pass: long thin thresholded streaks (hemp-fibre cun)
+  // whose coverage grows with the shade field, over a soft wash streaked the same way. Inside a face
+  // the texture x is face-relative, so strokes fan out with the spindle and lean with it.
   {
     const cs = 6, gw = Math.ceil(bw / cs) + 2, gh = Math.ceil(bh / cs) + 2;
     const S = new Float32Array(gw * gh), T = new Float32Array(gw * gh).fill(2), W = new Float32Array(gw * gh);
@@ -357,8 +375,21 @@ export function paintMassif(ctx, api, o) {
       const x = bx + i * cs, y = by + j * cs, m = j * gw + i;
       const sv = inside(x, y) || inside(x, y - cs) ? shadeAt(x, y) * life(x, y) : 0;
       S[m] = sv;
-      if (sv > 0.04) T[m] = mix(1.05, -0.6, sstep(0.22, 0.95, sv * tex0)) + 0.3 * nz.n2(x / (70 * sc) + 2.2, y / (90 * sc) + 7.1);
-      W[m] = nz.n2(x / 90, y / 120 + 9) * 2.5 * sc;
+      if (sv > 0.04) T[m] = mix(1.3, -0.6, sstep(0.3, 0.95, sv * tex0)) + 0.3 * nz.n2(x / (70 * sc) + 2.2, y / (90 * sc) + 7.1);
+      let off = nz.n2(x / 90, y / 120 + 9) * 2.5 * sc + nz.n2(x / 260, y / 180 + 4) * 9 * sc, wb = 0;
+      for (const f of F) {
+        if (y < f.y - 2) continue;
+        const G = faceGeom(f, y);
+        if (G.v > 1.3 || G.hw < 1) continue;
+        const d = (x - G.cx) / G.hw;
+        if (d < -1.8 || d > 1.8) continue;
+        const wf = sstep(1.8, 1.1, Math.abs(d)) * sstep(1.3, 0.9, G.v);
+        if (wf <= wb) continue;
+        wb = wf;
+        const kf = Math.min(f.w * 0.5 / G.hw, 2.5);
+        off = mix(off, f.x + (x - G.cx) * kf - x, wf);
+      }
+      W[m] = off;
     }
     const ds = o.texDs ?? (sc >= 1.3 ? 1.25 : sc >= 1.1 ? 1.5 : 2);
     const tw = Math.ceil(bw / ds), th = Math.ceil(bh / ds);
@@ -368,7 +399,9 @@ export function paintMassif(ctx, api, o) {
     const D = im.data;
     const ic = dil(paper, tone);
     const ts = o.texScale ?? 1;
-    const fx = 1 / (5 * sc * ts), fy = 1 / (26 * sc * ts), gx = 1 / (13 * sc * ts), gy = 1 / (9 * sc * ts);
+    const fx = 1 / (3.2 * sc * ts), fy = 1 / (60 * sc * ts), gx = 1 / (8 * sc * ts), gy = 1 / (22 * sc * ts), hx = 1 / (1.8 * sc * ts), hy = 1 / (9 * sc * ts);
+    const wk = o.shadeWash ?? 0.45, lk = o.lines ?? 1;
+    const lx = 1 / (10 * sc * ts), ly = 1 / (75 * sc * ts), bxF = 1 / (14 * sc * ts), byF = 1 / (90 * sc * ts);
     for (let j = 0; j < th; j++) {
       const y = by + j * ds;
       const gyf = (y - by) / cs, gj = Math.min(gh - 2, gyf | 0), fy2 = gyf - gj;
@@ -379,10 +412,20 @@ export function paintMassif(ctx, api, o) {
         const s = mix(mix(S[o0], S[o0 + 1], fx2), mix(S[o0 + gw], S[o0 + gw + 1], fx2), fy2);
         if (s < 0.06) continue;
         const t0 = mix(mix(T[o0], T[o0 + 1], fx2), mix(T[o0 + gw], T[o0 + gw + 1], fx2), fy2);
-        if (t0 > 0.95) continue;
         const xw = x + mix(mix(W[o0], W[o0 + 1], fx2), mix(W[o0 + gw], W[o0 + gw + 1], fx2), fy2);
-        const q = 0.62 * nz.n2(xw * fx + 31.7, y * fy) + 0.38 * nz.n2(xw * gx + 5.1, y * gy + 3.3);
-        const a = sstep(t0 - 0.1, t0 + 0.1, q) * (0.2 + 0.75 * s);
+        const aw = wk * sstep(0.12, 1.0, s) * (0.65 + 0.35 * nz.n2(xw / (12 * sc) + 4.4, y / (90 * sc)));
+        let at = 0;
+        if (t0 < 0.95) {
+          const q = 0.55 * nz.n2(xw * fx + 31.7, y * fy) + 0.3 * nz.n2(xw * gx + 5.1, y * gy + 3.3) + 0.15 * nz.n2(xw * hx + 9.9, y * hy + 1.7);
+          at = sstep(t0 - 0.12, t0 + 0.12, q) * (0.2 + 0.75 * s);
+        }
+        // fibre lines: zero crossings of a stretched noise are long continuous strokes; a second noise
+        // breaks them into strokes of varying length, line width grows with the shade
+        const wl = 0.045 + 0.13 * s;
+        const n1 = Math.abs(nz.n2(xw * lx + 3.7, y * ly + 8.1));
+        let al = 0;
+        if (n1 < wl) al = sstep(wl, wl * 0.35, n1) * sstep(-0.25, 0.35, nz.n2(xw * bxF + 1.3, y * byF + 6.6)) * (0.22 + 0.6 * s) * lk;
+        const a = 1 - (1 - at) * (1 - aw) * (1 - al);
         if (a < 0.01) continue;
         const p = (j * tw + i) * 4;
         D[p] = ic[0]; D[p + 1] = ic[1]; D[p + 2] = ic[2]; D[p + 3] = (a * 255) | 0;
@@ -479,6 +522,7 @@ export function paintMassif(ctx, api, o) {
       trees.push({ x: p[0] + (rng() - 0.5) * 8, y: p[1] + h * 0.25, h, lean: fo.lean, wide: fo.wide });
     }
   }
+  for (const p of o.pines || []) trees.push({ x: p[0], y: p[1], h: p[2], lean: p[3], wide: p[4] });   // explicit [x, y, h, lean, wide]
   const [h0, h1] = o.treeH || [22 * sc, 52 * sc];
   const tk = o.trees ?? 1;
   if (tk > 0) {
@@ -488,12 +532,13 @@ export function paintMassif(ctx, api, o) {
       const ty = topY(x);
       const nb = Math.max(topY(cx(x - 35 * sc)), topY(cx(x + 35 * sc)));
       const summit = clamp((nb - ty) / (16 * sc));
-      const clump = sstep(-0.85, 0.05, nz.n2(x / 75, 13.3));
+      const clump = sstep(-0.5, 0.2, nz.n2(x / 75, 13.3));
       let step = h1 * (0.35 + 0.4 * rng());
       if (rng() < (0.75 + 0.25 * summit) * clump * Math.min(1, tk)) {
-        const h = mix(h0, h1, Math.pow(rng(), 0.75)) * (0.8 + 0.35 * summit);
+        const h = mix(h0, h1, Math.pow(rng(), 0.75)) * (0.8 + 0.35 * summit) * (rng() < 0.15 ? 1.45 : 1);
         trees.push({ x: x + (rng() - 0.5) * 8, y: ty + h * mix(0.1, 0.3, rng()), h });
         if (rng() < 0.8 * tk) trees.push({ x: x + (rng() - 0.5) * h * 0.9, y: ty + h * mix(0.45, 0.9, rng()), h: h * mix(0.55, 0.8, rng()) });
+        if (rng() < 0.45 * tk) trees.push({ x: x + (rng() - 0.5) * h * 1.2, y: ty + h * mix(0.35, 0.8, rng()), h: h * mix(0.5, 0.75, rng()) });
         step = h * (0.28 + 0.35 * rng());
       }
       x += step / Math.sqrt(Math.max(0.3, tk));

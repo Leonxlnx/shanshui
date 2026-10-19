@@ -96,7 +96,10 @@ vec4 shade(vec2 p, vec2 uv) {
   float fx = p.x - uW1.y * t;
   float band = fbm(vec2(fx / 70.0, p.y / 7.0 + sd), 3);
   float churn = fbm3(vec3(p.x / 16.0, (p.y + 18.0 * t) / 12.0, t * 0.5 + sd), 3);
-  float darkF = clamp(smoothstep(0.15, 0.8, band) * 0.6 + smoothstep(0.2, 0.9, churn) * 0.5, 0.0, 1.0) * uW1.x * foam;
+  // spatter: small grey specks in the churned froth (dry-brush splash dots), slowly tumbling
+  float spat = smoothstep(0.3, 0.75, snoise(vec2(p.x / 3.2 + sd, (p.y - 9.0 * t) / 2.6))) * smoothstep(-0.1, 0.5, churn)
+             * smoothstep(-0.2, 0.4, snoise(vec2(p.x / 40.0 - sd, (p.y - 6.0 * t) / 30.0)));
+  float darkF = clamp(smoothstep(0.15, 0.8, band) * 0.6 + smoothstep(0.2, 0.9, churn) * 0.5, 0.0, 1.0) * uW1.x * foam + spat * 0.3 * foam;
   // calm water between: faint long horizontal strokes
   if (uW1.z > 0.5) {
     // front mode: white water sliding over dark rock (bright strands + froth), transparent elsewhere

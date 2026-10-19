@@ -14,7 +14,7 @@ uniform vec4 uS2[6];   // fade start (v), lip, brightness, recess
 uniform int uN;
 uniform vec4 uRect;
 const vec3 ICE_W = vec3(0.975, 0.975, 0.972);
-const vec3 ICE_B = vec3(0.76, 0.785, 0.805);
+const vec3 ICE_B = vec3(0.8, 0.82, 0.84);
 const vec3 ICE_D = vec3(0.5, 0.53, 0.565);
 vec4 shade(vec2 q, vec2 uv) {
   vec2 p = q + uRect.xy;
@@ -28,10 +28,12 @@ vec4 shade(vec2 q, vec2 uv) {
     float vc = clamp(v, 0.0, 1.0);
     float sd = B.w;
     float cx = A.x + B.y * vc + 5.0 * snoise(vec2(p.y * 0.008, sd));
-    float hw = mix(A.w, B.x, vc) * (1.0 + 0.1 * snoise(vec2(p.y * 0.018, sd + 3.0)));
+    // the curtain bulges out in rounded tiers (draped, cauliflower-like), not a straight sheet
+    float tierB = 0.5 + 0.5 * sin(vc * 6.283 * 1.6 + sd * 1.3);
+    float hw = mix(A.w, B.x, vc) * (1.0 + 0.1 * snoise(vec2(p.y * 0.018, sd + 3.0))) * (0.9 + 0.22 * tierB);
     float u = (p.x - cx) / hw;
     if (abs(u) > 1.4) continue;
-    float en = 0.12 * snoise(vec2(p.y * 0.035, sd + 7.0)) + 0.06 * snoise(vec2(p.y * 0.12, sd + 8.0));
+    float en = 0.14 * snoise(vec2(p.y * 0.035, sd + 7.0)) + 0.1 * snoise(vec2(p.y * 0.12, sd + 8.0)) + 0.08 * abs(snoise(vec2(p.y * 0.3, sd + 9.0)));
     float edge = 1.0 - smoothstep(0.84, 1.0, abs(u) + en);
     float cw = B.z;
     float xw = p.x - cx + 3.0 * snoise(vec2(p.y * 0.006, sd + 11.0));
@@ -67,10 +69,14 @@ vec4 shade(vec2 q, vec2 uv) {
       float s = dxc / max(halfw, 0.05);          // -1 lit side .. 1 shadow side
       float st = streaks(vec2(p.x * 0.5, p.y) * 0.08 + sd + float(layer) * 3.0, vec2(0.0, 1.0), 7.0, 3);
       float band = 0.5 + 0.5 * sin(p.y * 0.08 + h * 30.0 + 2.0 * snoise(vec2(ic, p.y * 0.02)));
-      float lum = 0.92 + 0.1 * (1.0 - smoothstep(-0.2, 0.9, s)) + 0.2 * (st - 0.5) + 0.06 * (band - 0.5);
-      lum -= 0.34 * smoothstep(0.35, 1.0, s) * (1.0 - mg);
+      // cauliflower lumps: rounded knobs lit from the upper left, grey creases between them
+      vec2 wq = vec2(p.x * 0.07, p.y * 0.05) + sd;
+      float wv = worley(wq), wl = worley(wq + vec2(-0.12, -0.12));
+      float knob = 0.1 * clamp((wv - wl) * 4.0, -1.0, 1.0) - 0.16 * smoothstep(0.55, 0.9, wv);
+      float lum = 0.94 + 0.08 * (1.0 - smoothstep(-0.2, 0.9, s)) + 0.1 * (st - 0.5) + 0.04 * (band - 0.5) + knob;
+      lum -= 0.32 * smoothstep(0.3, 1.0, s) * (1.0 - mg);
       lum -= 0.2 * smoothstep(0.07, 0.14, mv) * (1.0 - smoothstep(0.15, 0.24, mv));   // mound underside
-      lum *= (layer == 0 ? 0.86 : 1.0) * C.z;
+      lum *= (layer == 0 ? 0.92 : 1.0) * C.z;
       lum -= 0.2 * smoothstep(0.55, 1.0, abs(u)) * step(0.0, u);
       lum -= 0.12 * (1.0 - tb) * smoothstep(0.2, 0.9, abs(s));
       vec3 ice = mix(ICE_B, ICE_W, clamp(lum, 0.0, 1.0));

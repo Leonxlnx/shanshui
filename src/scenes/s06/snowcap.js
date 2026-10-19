@@ -212,6 +212,22 @@ export function makeSnowPine(api, o = {}) {
       paintFanPads(ctx, T, o.fans === true ? o : { ...o, ...o.fans });
     } else paintPine(ctx, { ...o, snow: 0, backTone: o.backTone ?? 0.55, under: o.under ?? 1.4, tree: T });
     snowCaps(ctx.canvas, k, { seed: (o.seed ?? 1) * 3 + 1, ...(o.caps || {}) });
+    // loose flecks of snow caught in the needles below the cushions (ref 06: speckled, not frosted)
+    if (o.flecks) {
+      const rng = rng1((o.seed ?? 1) * 31 + 7);
+      const R = o.needle ?? 10;
+      ctx.fillStyle = 'rgb(246,246,244)';
+      for (const p of T.pads) {
+        const n = Math.round(p.w * o.flecks / 6);
+        for (let i = 0; i < n; i++) {
+          const x = p.x + (rng() - 0.5) * p.w * 0.95, y = p.y + (rng() - 0.25) * Math.max(p.h, R) * 0.9;
+          const r = R * (0.08 + rng() * 0.17);
+          ctx.globalAlpha = 0.8 + rng() * 0.2;
+          ctx.beginPath(); ctx.ellipse(x, y, r * (1.2 + rng()), r * (0.5 + rng() * 0.4), (rng() - 0.5) * 0.5, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
   }, { scale: o.scale ?? 1 });
   const inked = inkify(api, src, { edge: 0.4, granulation: 0.1, bleed: 0.8, seed: (o.seed ?? 1) % 17, ...(o.ink || {}) });
   api.engine?.freeTex?.(src);

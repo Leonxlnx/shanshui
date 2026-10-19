@@ -8,8 +8,8 @@
 // Every bridge shares the z of both peaks it hangs between, so parallax never detaches it.
 import { makeSky, makeMist } from '../lib/atmos.js';
 import { makeRange, wetInk } from '../lib/peaks.js';
-import { bakeMassifs } from './s04/massif.js';
-import { makePine, paintConifer, paintTreeLine } from '../lib/pine.js';
+import { bakeMassifs, paintSoftPine } from './s04/massif.js';
+import { makePine } from '../lib/pine.js';
 import { inkify } from '../lib/inkfx.js';
 import { paintPavilion, paintRopeBridge, bakeArch } from '../lib/architecture.js';
 import { makeMaple } from '../lib/flora.js';
@@ -135,15 +135,16 @@ export default {
       { seed: 302, tone: 0.1, base: 720, fade: 560, tips: 1.4, sc: 1.2, splay: [40, 30], treeH: [44, 96], dark: 0.12,
         top: [[60, 425], [85, 398], [110, 382], [140, 376], [170, 384], [200, 398], [228, 420], [255, 440], [285, 455], [320, 470], [345, 500]],
         faces: [{ x: 205, y: 405, w: 56, len: 300 }, { x: 290, y: 462, w: 36, len: 220 }] },
-      { seed: 303, tone: 0.1, base: 790, fade: 630, tips: 1.3, sc: 1.2, splay: [30, 40], treeH: [42, 92], dark: 0.1,
+      { seed: 303, tone: 0.1, base: 790, fade: 680, tips: 1.3, sc: 1.2, splay: [30, 40], treeH: [42, 92], dark: 0.1,
         top: [[300, 528], [322, 502], [345, 493], [362, 506], [370, 540], [395, 550], [418, 543], [430, 516], [450, 501], [480, 494], [510, 505], [540, 524], [575, 540], [610, 560], [645, 600]],
-        faces: [{ x: 472, y: 502, w: 62, len: 280 }, { x: 330, y: 505, w: 30, len: 220 }, { x: 590, y: 552, w: 40, len: 220 }] },
+        faces: [{ x: 472, y: 502, w: 62, len: 280 }, { x: 330, y: 505, w: 30, len: 220 }, { x: 590, y: 552, w: 40, len: 220 }],
+        zones: [[352, 610, 34, 120, 0.4, 0.9], [470, 640, 60, 130, 0.38, 1.0]] },
     ], { wetInk });
     layers.push(makeMist(api, { top: 600, bottom: 900, z: 1.5, lobe: 80, seed: 5, drift: 12, density: 0.55, softness: 16, wispsAbove: 0.35, extent: [-200, 760, 200], rect: mistRect(600, 900, 80, -120, 1080) }));
     layers.push(api.tex(fl, { rect: flRect, z: 1.3, name: 'front-left' }));
     const falls = makeWaterfall(api, {
       lip: [[368, 542], [418, 547]], height: 300, bendL: 6, bendR: 14, curve: 6, driftL: 8, driftR: 40, arch: 2,
-      speed: 230, z: 1.3, seed: 4.2, sheets: 2, streakScale: 4.5, thin: 0.3, sideShade: 0.2, fade: 0.7,
+      speed: 230, z: 1.3, seed: 4.2, sheets: 0, streakScale: 4.5, thin: 0.2, sideShade: 0.2, fade: 0.7,
       spray: { amount: 0.85, rise: 90, width: 90 },
     });
     layers.push(...falls.layers);
@@ -152,10 +153,10 @@ export default {
     // centre-front peak carrying the long bridge (behind the lower peaks' mist)
     const n1Rect = [720, 290, 500, 630];
     const n1 = bakeMassifs(api, n1Rect, [
-      { seed: 505, tone: 0.14, base: 830, fade: 650, sc: 1.15, splay: [0, 24], treeH: [36, 74], trees: 0.6, tips: 1.2,
+      { seed: 505, tone: 0.14, base: 830, fade: 650, sc: 1.15, splay: [0, 24], treeH: [28, 58], trees: 0.6, tips: 1.2,
         top: [[1000, 520], [1010, 488], [1030, 476], [1060, 472], [1085, 478], [1100, 490], [1115, 510], [1125, 545], [1132, 600]],
         faces: [{ x: 1058, y: 482, w: 96, len: 330 }] },
-      { seed: 501, tone: 0.1, base: 800, fade: 620, sc: 1.15, splay: [34, 0], treeH: [38, 80], dark: 0.15, tips: 1.4,
+      { seed: 501, tone: 0.1, base: 800, fade: 620, sc: 1.15, splay: [34, 0], treeH: [28, 62], dark: 0.15, tips: 1.4,
         top: [[870, 530], [885, 488], [905, 462], [930, 444], [955, 434], [978, 438], [995, 452], [1008, 480], [1015, 520]],
         faces: [{ x: 930, y: 452, w: 34, len: 220 }] },    ], { wetInk });
     layers.push(api.tex(n1, { rect: n1Rect, z: 1, name: 'centre-front' }));
@@ -179,13 +180,13 @@ export default {
     // ---------------------------------------------------------------- near (z 1)
     const nearRect = [-100, 500, 1560, 670];
     const near = bakeMassifs(api, nearRect, [
-      { seed: 502, tone: 0.3, base: 1150, fade: 1010, sc: 1.1, splay: [10, 10], treeH: [18, 36],
+      { seed: 502, tone: 0.16, base: 1150, fade: 1010, sc: 1.1, splay: [10, 10], treeH: [22, 44], sideDark: 0.3,
         top: [[1270, 802], [1285, 762], [1305, 744], [1330, 738], [1352, 750], [1370, 776], [1385, 822]],
         faces: [{ x: 1334, y: 748, w: 50, len: 330 }] },
       { seed: 503, tone: 0.08, base: 1140, fade: 990, sc: 1.25, splay: [20, 20], treeH: [36, 80],
         top: [[180, 832], [195, 802], [225, 791], [260, 787], [300, 790], [340, 800], [370, 815], [400, 840], [420, 882]],
         faces: [{ x: 300, y: 796, w: 96, len: 320 }], zones: [[330, 860, 90, 50, 0.25, 1.2], [215, 850, 40, 60, 0.3, 1]] },
-      { seed: 504, tone: 0.08, base: 980, fade: 790, sc: 1.25, splay: [0, 30], treeH: [36, 80], dark: 0.1, faces: [{ x: 40, y: 672, w: 56, len: 260 }, { x: 128, y: 700, w: 40, len: 200 }], zones: [[90, 720, 110, 50, 0.25, 1.3]],
+      { seed: 504, tone: 0.08, base: 980, fade: 790, sc: 1.25, splay: [0, 30], treeH: [36, 80], dark: 0.1, faces: [{ x: 40, y: 672, w: 56, len: 260 }, { x: 128, y: 700, w: 40, len: 200 }], zones: [[90, 720, 110, 50, 0.25, 1.3], [60, 860, 90, 150, 0.22]],
         top: [[-60, 700], [-20, 672], [20, 660], [60, 664], [100, 680], [140, 700], [170, 730], [192, 772]] },
     ], { wetInk });
     layers.push(api.tex(near, { rect: nearRect, z: 1, name: 'near' }));
@@ -193,19 +194,20 @@ export default {
     // right cliff: pale granite wall with the pavilion on top, darker front masses
     const rcRect = [1300, 210, 760, 970];
     const rc = bakeMassifs(api, rcRect, [
-      { seed: 601, tone: 0.1, base: 1190, fade: 1120, sc: 1.35, splay: [20, 0], treeH: [34, 70], trees: 0.5, darkX: [1760, 1900, 0.3], moss: 0.45, wash: 0.7, band: 0.45, washAlpha: 0.75, dark: 0.04, faceLit: 0.3, faceShadow: 0.62,
-        tex: 1.15, zones: [[1900, 540, 55, 180, 0.28, 0.9], [1470, 460, 70, 50, 0.2, 1.2], [1690, 470, 42, 95, 0.35, 1.2], [1662, 610, 36, 90, 0.3, 1.0]],
+      { seed: 601, tone: 0.1, base: 1190, fade: 1120, sc: 1.35, splay: [70, 0], treeH: [34, 70], trees: 0.5, darkX: [1760, 1900, 0.3], moss: 0.45, wash: 0.7, band: 0.45, washAlpha: 0.75, dark: 0.04, shadeWash: 0.5, lines: 1.3, faceLit: 0.38, faceShadow: 0.62,
+        tex: 1.15, zones: [[1470, 660, 75, 260, 0.2], [1900, 540, 55, 180, 0.28, 0.9], [1470, 460, 70, 50, 0.2, 1.2], [1690, 470, 42, 95, 0.35, 1.2], [1662, 610, 36, 90, 0.3, 1.0]],
         top: [[1396, 520], [1405, 472], [1416, 446], [1440, 421], [1462, 402], [1485, 388], [1515, 390], [1545, 378], [1575, 384], [1605, 393], [1640, 389], [1690, 389], [1722, 380], [1760, 384], [1800, 363], [1840, 351], [1880, 345], [1920, 350], [1990, 362], [2040, 380]],
         faces: [{ x: 1440, y: 440, w: 70, len: 600, lean: -0.04, blunt: 8 }, { x: 1540, y: 410, w: 80, len: 560, lean: -0.02, blunt: 8 },
           { x: 1615, y: 420, w: 44, len: 420, blunt: 6 }, { x: 1775, y: 430, w: 160, len: 480, lean: 0.12, blunt: 7 }],
         foliage: [{ pts: [[1406, 470], [1420, 440], [1445, 418], [1470, 398], [1500, 388]], r: 7, hang: 40, dens: 1.4, trees: 1, treeH: [30, 64] },
           { pts: [[1760, 384], [1800, 366], [1840, 354], [1880, 350], [1930, 356], [2000, 366]], r: 8, hang: 90, dens: 1.6 },
           { pts: [[1700, 470], [1720, 520], [1716, 600], [1700, 680]], r: 6, hang: 20, dens: 1.0 }] },
-      { seed: 602, tone: 0.07, base: 1190, fade: 1140, sc: 1.35, splay: [0, 0], treeH: [34, 70], trees: 0.3, moss: 0.3, wash: 0.6, band: 0.45, washAlpha: 0.6, faceLit: 0.26, faceShadow: 0.65,
+      { seed: 602, tone: 0.07, base: 1190, fade: 1140, sc: 1.35, splay: [0, 0], treeH: [34, 70], trees: 0.3, moss: 0.3, wash: 0.6, band: 0.45, washAlpha: 0.6, shadeWash: 0.5, lines: 1.3, faceLit: 0.34, faceShadow: 0.65,
         zones: [[1650, 840, 120, 60, 0.25, 1.4], [1510, 970, 90, 80, 0.25, 1.4], [1745, 765, 70, 45, 0.2, 1.2], [1850, 880, 110, 220, -0.3]],
         top: [[1330, 1110], [1380, 1042], [1430, 982], [1480, 922], [1530, 862], [1580, 802], [1620, 762], [1665, 722], [1700, 704], [1740, 696], [1800, 706], [1860, 694], [1920, 702], [2040, 722]],
         faces: [{ x: 1560, y: 840, w: 70, len: 320, lean: -0.25, blunt: 6 }, { x: 1700, y: 712, w: 100, len: 460, lean: -0.1, blunt: 6 }, { x: 1830, y: 712, w: 120, len: 460, lean: -0.08, blunt: 6 }],
-        foliage: [{ pts: [[1440, 975], [1480, 922], [1530, 862], [1580, 802], [1620, 765], [1665, 726], [1700, 708]], r: 9, hang: 70, dens: 1.8, trees: 1.2, treeH: [40, 80], lean: -0.45, wide: 1.5 },
+        pines: [[1598, 792, 112, -0.5, 1.25]],
+        foliage: [{ pts: [[1440, 975], [1480, 922], [1530, 862], [1580, 802], [1620, 765], [1665, 726], [1700, 708]], r: 10, hang: 95, dens: 2.6 },
           { pts: [[1340, 1100], [1380, 1050], [1420, 1000]], r: 10, hang: 80, dens: 2, trees: 1, treeH: [40, 80] }] },    ], { wetInk });
     layers.push(api.tex(rc, { rect: rcRect, z: 1, name: 'right-cliff' }));
 
@@ -225,12 +227,26 @@ export default {
     layers.push(maples.layer({ z: 1, amp: 1.5 }));
 
     // pine top-right leaning left (ref 04 lab calibration) with firs behind the trunk
+    // behind the trunk: painted Huangshan pines (wet bodies blurred, crisp needles), not stamped firs
     const back = api.bakeCanvas(420, 420, (ctx) => {
       ctx.translate(-1500, 0);
-      paintConifer(ctx, 1900, 400, 290, { kind: 'fir', tone: 0.66, seed: 3, width: 0.9 });
-      paintConifer(ctx, 1830, 395, 250, { kind: 'fir', tone: 0.52, seed: 8, width: 0.95 });
+      const wc = new OffscreenCanvas(ctx.canvas.width, ctx.canvas.height);
+      const w = wc.getContext('2d');
+      for (const [x, y, h, tone, seed, wid, tiers] of [[1892, 410, 300, 0.32, 3, 0.9, 7], [1808, 392, 170, 0.22, 8, 1.0, 5]]) {
+        const c = `rgb(${[14, 12, 9].map((v, i) => Math.round(v + (P[i] - v) * tone)).join(',')})`;
+        w.setTransform(ctx.getTransform());
+        w.clearRect(-1e4, -1e4, 2e4, 2e4);
+        ctx.fillStyle = c; w.fillStyle = c;
+        paintSoftPine(ctx, w, x, y, h, { ink: c, lean: -0.04, width: wid, tiers, cone: true }, api.rng('s04back:' + seed));
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalAlpha = 1;
+        ctx.filter = 'blur(1px)';
+        ctx.drawImage(wc, 0, 0);
+        ctx.restore();
+      }
     });
-    layers.push(api.tex(inkify(api, back, { edge: 0.15, granulation: 0.15, bleed: 2.4 }), { rect: [1500, 0, 420, 420], z: 1, name: 'firs',
+    layers.push(api.tex(inkify(api, back, { edge: 0.3, granulation: 0.15, bleed: 1.0 }), { rect: [1500, 0, 420, 420], z: 1, name: 'firs',
       sway: { amp: 1.5, freq: 0.2, scale: 300, power: 1.6, anchor: [1860, 400], radius: 300 } }));
     const pine = makePine(api, {
       seed: 4, height: 360, gnarl: 0.7,
@@ -242,7 +258,7 @@ export default {
         { pts: [[1752, 72], [1712, 52], [1662, 46], [1627, 52], [1590, 72]], w: 18, subs: 2 },
         { pts: [[1754, 72], [1792, 54], [1830, 50], [1864, 58]], w: 12, subs: 1 },
       ],
-      padSize: 44, needle: 8, padDensity: 1.35, haze: 0, barkTone: 0.24, backTone: 0.62, swayAmp: 3.5, swayFreq: 0.2,
+      padSize: 44, needle: 8, padDensity: 1.15, haze: 0, barkTone: 0.5, barkDensity: 0.7, knobs: 0.4, backTone: 0.62, wet: 0.25, soft: 0.2, core: 0.15, needles: 11, swayAmp: 3.5, swayFreq: 0.2,
     });
     layers.push(pine.layer({ z: 1 }));
 

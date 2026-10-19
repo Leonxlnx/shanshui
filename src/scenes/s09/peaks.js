@@ -95,7 +95,7 @@ function makeP(o) {
     face: o.face ?? v.face,
     detail: o.detail ?? 1,
     fis: o.fis ?? 1, fisFade: o.fisFade ?? 0.4, drip: o.drip ?? 1.1, litK: o.litK ?? 1,
-    style: o.style ?? 'plain', washK: o.washK ?? 1, cunK: o.cunK ?? 1, edgeK: o.edgeK ?? 1, mossK: o.mossK ?? 1, valK: o.valK ?? 1,
+    style: o.style ?? 'plain', faceK: o.faceK ?? 1, fibreK: o.fibreK ?? 0, ledgeK: o.ledgeK ?? 0, washK: o.washK ?? 1, cunK: o.cunK ?? 1, edgeK: o.edgeK ?? 1, mossK: o.mossK ?? 1, valK: o.valK ?? 1,
     trees: o.trees ?? 1,
     treeSize: o.treeSize ?? 1,
     far: smoothstep(0.42, 0.85, tone),
@@ -274,6 +274,12 @@ function buildColumn(c, P, sc) {
     }
     ch = Math.max(...tips.map((t) => t.top + t.h)) - top;
   }
+  // 'cun' style: angular crowns (piecewise straight shoulders, asymmetric) instead of rounded thumbs
+  const angular = P.style === 'cun';
+  const knots = () => { const qa = r.range(0.12, 0.4), ya = r.range(0.0, 0.22), qb = r.range(0.5, 0.82), yb = r.range(ya + 0.12, 0.72); return [qa, ya, qb, yb]; };
+  const pl = (q, k) => (q < k[0] ? (q / k[0]) * k[1] : q < k[2] ? k[1] + ((q - k[0]) / (k[2] - k[0])) * (k[3] - k[1]) : k[3] + ((q - k[2]) / (1 - k[2])) * (1 - k[3]));
+  if (angular) for (const t of tips) { t.kL = knots(); t.kR = knots(); }
+  const fk = angular ? [[r.range(0.25, 0.55), r.range(0.55, 0.85)], [r.range(0.25, 0.55), r.range(0.55, 0.85)]] : null;
   const sh = top + ch;
   const notches = [];
   const nn = c.notches ?? r.int(0, 1 + Math.round(H / 300));
@@ -296,6 +302,10 @@ function buildColumn(c, P, sc) {
     if (cap === 'flat') {
       const rr = 0.36;
       const e = u < rr ? u / rr : u > 1 - rr ? (1 - u) / rr : 1;
+      if (fk) {
+        const [ka, kb] = fk[u < 0.5 ? 0 : 1];
+        y = sh - ch * (e < ka ? (e / ka) * kb : kb + ((e - ka) / (1 - ka)) * (1 - kb)) + tilt * (u - 0.5) * cw;
+      } else
       y = sh - ch * Math.pow(Math.max(0, 1 - (1 - e) * (1 - e)), 0.6) + tilt * (u - 0.5) * cw;
       y += nz.n2(s1 + 3, x / (14 * sc)) * 1.6 * sc;
     } else {
@@ -303,7 +313,7 @@ function buildColumn(c, P, sc) {
       for (const t of tips) {
         const q = (x - t.x) / t.w;
         if (Math.abs(q) >= 1) continue;
-        const ty = cap === 'point' ? t.top + t.h * Math.pow(Math.abs(q), 1.25) : t.top + t.h * (1 - Math.sqrt(Math.max(0, 1 - Math.pow(Math.abs(q), 1.25))));
+        const ty = t.kL ? t.top + t.h * pl(Math.abs(q), q < 0 ? t.kL : t.kR) : cap === 'point' ? t.top + t.h * Math.pow(Math.abs(q), 1.25) : t.top + t.h * (1 - Math.sqrt(Math.max(0, 1 - Math.pow(Math.abs(q), 1.25))));
         if (ty < y) y = ty;
       }
       // the outermost shoulders blend into the sides
@@ -1008,6 +1018,22 @@ function inkColumn09(g, C, P, sc) {
     for (let k = 0; k <= n; k++) { const y = y0 + (len * k) / n; pts.push([C.xAt(u, y) + wig(sd, y), y]); }
     return pts;
   };
+  // facets: the face is split into a few vertical planes, each dark at its shadow edge (a crevice) and lit
+  // toward the other edge, so a pillar reads as faceted granite rather than one shaded cylinder
+  const nF = C.facets ?? clamp(Math.round(C.cw / (46 * sc) + r.range(-0.3, 0.5)), 1, 5);
+  const bnd = [-1.1];
+  for (let i = 1; i < nF; i++) bnd.push(mix(-1, 1, i / nF) + r.range(-0.3, 0.3) * (2 / nF));
+  bnd.push(1.1);
+  const fsd = r() * 50;
+  const bu = (i, y) => bnd[i] + (i > 0 && i < nF ? 0.07 * nz.n2(fsd + i * 3.1, y / (70 * sc)) + 0.025 * nz.n2(fsd + i * 5.7, y / (14 * sc)) : 0);
+  const loc = (u, y) => {
+    let i = 0;
+    while (i < nF - 1 && u >= bu(i + 1, y)) i++;
+    const a = bu(i, y), b = bu(i + 1, y);
+    const t = clamp((u - a) / Math.max(1e-3, b - a));
+    return Math.pow(s < 0 ? 1 - t : t, 1.5);
+  };
+  const shd = (u, y) => 0.45 * side(u) + 0.55 * loc(u, y);
   // 1. paper occluder
   g.globalAlpha = 1;
   g.fillStyle = P.paperCss;
@@ -1025,9 +1051,26 @@ function inkColumn09(g, C, P, sc) {
     const xl0 = C.xAt(-1, C.sh), xr0 = C.xAt(1, C.sh);
     const hg = w.createLinearGradient(s < 0 ? xl0 : xr0, 0, s < 0 ? xr0 : xl0, 0);
     const vk = P.valK * (1 - 0.45 * far);
-    hg.addColorStop(0, icol(0.62 * vk)); hg.addColorStop(0.3, icol(0.46 * vk)); hg.addColorStop(0.65, icol(0.2 * vk)); hg.addColorStop(1, icol(0.06 * vk));
+    hg.addColorStop(0, icol(0.4 * vk)); hg.addColorStop(0.35, icol(0.22 * vk)); hg.addColorStop(0.7, icol(0.07 * vk)); hg.addColorStop(1, icol(0.02 * vk));
     w.fillStyle = hg;
     w.fill(C.path);
+    // facet planes: a wash ramp across each plane, iso-lines following the column axis
+    const ym = mix(C.sh, fadeY, 0.4);
+    const ld = (C.center(ym + 50) - C.center(ym - 50)) / 100;
+    const y0f = C.apex[1] - 6 * sc, st = 6 * sc;
+    for (let i = 0; i < nF; i++) {
+      const ua = bu(i, ym), ub = bu(i + 1, ym);
+      const xS = C.xAt(s < 0 ? ua : ub, ym), fw = C.xAt(s < 0 ? ub : ua, ym) - xS;
+      const gr = w.createLinearGradient(xS, ym, xS + fw, ym - ld * fw);
+      const a0 = (0.2 + 0.4 * side((ua + ub) / 2)) * vk * r.range(0.8, 1.25);
+      gr.addColorStop(0, icol(a0 * 1.1)); gr.addColorStop(0.12, icol(a0 * 0.85)); gr.addColorStop(0.38, icol(a0 * 0.35)); gr.addColorStop(0.7, icol(a0 * 0.08)); gr.addColorStop(1, icol(a0 * 0.02));
+      w.beginPath();
+      for (let y = y0f; y <= bot; y += st) w.lineTo(C.xAt(bu(i, y), y), y);
+      for (let y = bot; y >= y0f; y -= st) w.lineTo(C.xAt(bu(i + 1, y), y), y);
+      w.closePath();
+      w.fillStyle = gr;
+      w.fill();
+    }
     const vg = w.createLinearGradient(0, top, 0, bot);
     vg.addColorStop(0, 'rgba(0,0,0,1)'); vg.addColorStop(clamp((fadeY - top) / H * 0.6), 'rgba(0,0,0,0.8)'); vg.addColorStop(clamp((fadeY - top) / H), 'rgba(0,0,0,0.5)'); vg.addColorStop(1, 'rgba(0,0,0,0.25)');
     w.globalCompositeOperation = 'destination-in';
@@ -1035,7 +1078,7 @@ function inkColumn09(g, C, P, sc) {
     w.fillRect(C.xl - 4 * C.hw, top - H, 10 * C.hw, 3 * H);
     w.globalCompositeOperation = 'source-over';
   }
-  const fd = P.face * (1 + 2.2 * far) * P.washK;
+  const fd = P.face * (1 + 2.2 * far) * P.washK * P.faceK;
   const pg = w.createLinearGradient(0, top, 0, bot);
   pg.addColorStop(0, icol(fd * 2.2)); pg.addColorStop(0.3, icol(fd * 1.1)); pg.addColorStop(1, icol(fd * 0.2));
   w.fillStyle = pg;
@@ -1043,10 +1086,10 @@ function inkColumn09(g, C, P, sc) {
   w.fillStyle = P.inkCss;
   const nw = Math.round((C.cw / (5 * sc)) * D);
   for (let i = 0; i < nw; i++) {
-    const u = s * (1.05 - Math.pow(r(), 0.8) * 1.5);
-    const sd = side(u);
-    if (r() > 0.15 + 0.85 * sd) continue;
+    const u = r.range(-1.05, 1.05);
     const y0 = C.topAt(u) - 3 * sc;
+    const sd = shd(u, y0 + H * 0.2);
+    if (r() > 0.1 + 0.9 * sd) continue;
     const len = H * r.range(0.2, 0.6);
     ribbon(w, along(u, y0, len, i * 3.7, 4), r.range(14, 30) * sc, r.range(0.08, 0.16) * (0.3 + 0.7 * sd) * life(y0) * P.washK, r, { profile: 'brush', rough: 0.5, step: 6 });
   }
@@ -1056,7 +1099,7 @@ function inkColumn09(g, C, P, sc) {
     const y = mix(C.topAt(u) - 3 * sc, bot, Math.pow(r(), 1.2));
     const lf = life(y);
     if (lf < 0.03) continue;
-    const sd = side(u);
+    const sd = shd(u, y);
     const xx = C.xAt(u, y);
     const band = 0.2 + 1.4 * Math.pow(0.5 + 0.5 * nz.fbm2(xx / (13 * sc) + C.seedF, y / (80 * sc), 2), 1.5);
     if (r() > (0.35 + 0.65 * Math.pow(sd, 1.3)) * hi(y) * lf * band) continue;
@@ -1071,9 +1114,11 @@ function inkColumn09(g, C, P, sc) {
   w.fillStyle = '#000';
   const nf = Math.round((area / (900 * sc * sc)) * D * P.litK);
   for (let i = 0; i < nf; i++) {
-    const u = -s * (1.0 - Math.pow(r(), 0.8) * 1.7);
+    // lit part of a random facet
+    const fi = (r() * nF) | 0, ft = r.range(0.4, 1.0);
+    const u = s < 0 ? mix(bnd[fi], bnd[fi + 1], ft) : mix(bnd[fi + 1], bnd[fi], ft);
     const y = mix(C.topAt(u) + 8 * sc, fadeY * 1.05, Math.pow(r(), 0.9));
-    dab(w, C.xAt(u, y), y, r.range(4, 11) * sc, r.range(0.15, 0.4) * (1 - 0.6 * side(u)), r, r.range(1.8, 3.4), 0.45, r.range(-0.15, 0.15));
+    dab(w, C.xAt(u, y), y, r.range(4, 11) * sc, r.range(0.2, 0.45) * (1 - 0.5 * side(u)), r, r.range(1.8, 3.4), 0.45, r.range(-0.15, 0.15));
   }
   w.globalCompositeOperation = 'source-over';
   w.setTransform(1, 0, 0, 1, 0, 0);
@@ -1118,25 +1163,87 @@ function inkColumn09(g, C, P, sc) {
   // 3. hemp-fibre cun: many thin vertical strokes following the column, denser in shadow
   const nc = Math.round((area / (55 * sc * sc)) * D * P.cunK);
   for (let i = 0; i < nc; i++) {
-    const u = s * (1.05 - Math.pow(r(), 0.9) * 1.3);
-    const sd = side(u);
+    const u = r.range(-1.05, 1.05);
     const y0 = C.topAt(u) + Math.pow(r(), 1.4) * (fadeY - top) * 1.1;
+    const sd = shd(u, y0);
     const lf = life(y0);
     if (lf < 0.05 || r() > 0.1 + 0.9 * sd) continue;
     const len = r.range(8, 46) * sc * (0.6 + 0.8 * sd);
     ribbon(g, along(u, y0, len, 50 + i * 1.3, 3), r.range(0.6, 1.9) * sc, r.range(0.12, 0.4) * (0.35 + 0.65 * sd) * lf * hi(y0) * (1 - 0.5 * far), r, { profile: 'brush', rough: 0.6 });
   }
+  // 3b. long fibre strokes in bundles down each plane, dense at its shadow edge (streaky granite)
+  for (let i = 0; i < nF && P.fibreK > 0; i++) {
+    const fu = (bnd[i + 1] - bnd[i]) / 2;
+    const ns = Math.round(((C.cw * fu * (fadeY - top)) / (300 * sc * sc)) * D * P.fibreK);
+    for (let j = 0; j < ns; j++) {
+      const t = Math.pow(r(), 1.6) * 0.95;
+      const uAt = (y) => (s < 0 ? mix(bu(i, y), bu(i + 1, y), t) : mix(bu(i + 1, y), bu(i, y), t));
+      const u0 = uAt(C.sh);
+      const y0 = C.topAt(clamp(u0, -1, 1)) + 2 * sc + Math.pow(r(), 1.3) * (fadeY - top) * 0.95;
+      const lf = life(y0);
+      if (lf < 0.08) continue;
+      const len = r.range(16, 72) * sc;
+      const sd2 = r() * 40;
+      const pts = [];
+      for (let k = 0; k <= 4; k++) { const y = y0 + (len * k) / 4; pts.push([C.xAt(uAt(y), y) + wig(sd2, y) * 0.6, y]); }
+      ribbon(g, pts, r.range(0.6, 1.7) * sc, r.range(0.22, 0.6) * lf * hi(y0) * (0.45 + 0.55 * side(u0)) * (1 - 0.55 * t) * (1 - 0.4 * far), r, { profile: 'brush', rough: 0.6 });
+    }
+  }
+  // 3c. ledge breaks: each plane is a stack of blocks. A slanted dark break across part of a facet, moss
+  //     dots sitting on it, and the block below darker at its top (in the overhang's shadow)
+  const nl = Math.round(((fadeY - top) / (75 * sc)) * nF * P.ledgeK);
+  for (let j = 0; j < nl; j++) {
+    const i = (r() * nF) | 0;
+    const y = mix(C.sh + 14 * sc, fadeY, Math.pow(r(), 1.15));
+    const lf = life(y);
+    if (lf < 0.12) continue;
+    const ua = bu(i, y), ub = bu(i + 1, y);
+    const ta = r.range(-0.15, 0.2), tb = r.range(0.7, 1.15);
+    const xa = C.xAt(mix(ua, ub, ta), y), xb = C.xAt(mix(ua, ub, tb), y);
+    const dy = r.range(-0.5, 0.5) * (xb - xa);
+    const pts = [[xa, y], [mix(xa, xb, 0.3), y + dy * 0.3 + r.range(-3, 3) * sc], [mix(xa, xb, 0.7), y + dy * 0.7 + r.range(-3, 3) * sc], [xb, y + dy]];
+    const sh = r.range(12, 34) * sc;
+    const gsh = g.createLinearGradient(0, y, 0, y + sh);
+    gsh.addColorStop(0, icol(0.32 * lf * P.valK)); gsh.addColorStop(1, icol(0));
+    g.fillStyle = gsh;
+    g.globalAlpha = 1;
+    g.beginPath(); g.moveTo(xa, y); g.lineTo(xb, y + dy); g.lineTo(xb, y + dy + sh); g.lineTo(xa, y + sh); g.closePath(); g.fill();
+    g.fillStyle = P.inkCss;
+    ribbon(g, pts, r.range(1.4, 3.4) * sc, r.range(0.5, 0.85) * lf * hi(y) * (1 - 0.4 * far), r, { profile: 'brush', rough: 0.9 });
+    g.fillStyle = P.treeCss;
+    const nd = Math.round(Math.abs(xb - xa) / (6 * sc) * P.mossK * 0.6);
+    for (let k = 0; k < nd; k++) {
+      const q = r();
+      dab(g, mix(xa, xb, q), y + dy * q - r.range(0, 4) * sc, r.range(1.0, 3.0) * sc, r.range(0.45, 0.9) * lf, r, 0.6, 0.5);
+    }
+    g.fillStyle = P.inkCss;
+  }
   // 4. axe-cut chips: a few slanted darker planes on the shadow side, high up
   const na = Math.round((area / (420 * sc * sc)) * D);
   for (let i = 0; i < na; i++) {
-    const u = s * r.range(0.0, 1.0);
+    const u = r.range(-1.0, 1.0);
     const y = C.topAt(u) + Math.pow(r(), 1.8) * (fadeY - top);
     const lf = life(y);
-    if (r() > side(u) * lf) continue;
+    if (r() > shd(u, y) * lf) continue;
     chip(g, C.xAt(u, y), y, r.range(10, 24) * sc, r.range(4, 9) * sc, s * r.range(0.2, 0.7), r.range(0.1, 0.24) * lf * hi(y), r);
   }
   // 5. deep crevices: one or two dark broken fissures from the crown down the shadow half
-  const ncr = 1 + (r() < 0.5 ? 1 : 0) + (C.hw > 45 * sc ? 1 : 0);
+  // 5a. crisp broken crevice along each facet boundary (shadow edge of the next plane)
+  for (let i = 1; i < nF; i++) {
+    let y = C.capY(C.xAt(bu(i, C.sh), C.sh)) + r.range(0, 0.05) * H;
+    const yEnd = mix(y, fadeY, r.range(0.75, 1.1));
+    while (y < yEnd) {
+      const len = r.range(14, 48) * sc;
+      const lf = life(y);
+      if (r() < 0.85) {
+        const pts = [];
+        for (let k = 0; k <= 3; k++) { const yy = y + (len * k) / 3; pts.push([C.xAt(bu(i, yy), yy) - s * 0.8 * sc, yy]); }
+        ribbon(g, pts, r.range(1.3, 3.4) * sc * (1 - 0.4 * (y - top) / H), r.range(0.45, 0.85) * lf * hi(y), r, { profile: 'brush', rough: 0.8 });
+      }
+      y += len + r.range(2, 12) * sc;
+    }
+  }
+  const ncr = r() < 0.5 ? 1 : 0;
   for (let i = 0; i < ncr; i++) {
     const u = s * r.range(-0.35, 0.65);
     let y = C.topAt(u) + r.range(0, 0.12) * H;

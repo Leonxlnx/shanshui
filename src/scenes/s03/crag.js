@@ -76,12 +76,12 @@ export function paintCrag(ctx, r, nz, o) {
     for (let y = y0; y < y0 + len; y += r.range(4, 9)) {
       const p = pres(xx, y) * (1 - 0.6 * (y - y0) / len); if (p < 0.04) break;
       xx += lean * 6 + r.range(-1.2, 1.2);
-      blob(g, xx, y, r.range(1.6, 4.5), { color: ink(vD + 0.2 * (1 - dark), (0.08 + 0.5 * dark) * p), rng: r, irregular: 0.6, squash: r.range(1.8, 3.2), rot: Math.PI / 2 + lean });
+      blob(g, xx, y, r.range(1.6, 4.5), { color: ink(vD + 0.2 * (1 - dark), (0.08 + 0.5 * dark) * p * (o.dabA ?? 1)), rng: r, irregular: 0.6, squash: r.range(1.8, 3.2), rot: Math.PI / 2 + lean });
     }
   }
   // 2b. hemp-fibre cun: long, thin, dry vertical strokes (visible on the lit faces too)
   if (o.cun) {
-    g.save(); g.filter = `blur(${(1.8 * k).toFixed(1)}px)`;
+    g.save(); g.filter = `blur(${((o.cunBlur ?? 1.8) * k).toFixed(1)}px)`;
     const nC = Math.round((x1 - x0) / 10 * o.cun);
     for (let i = 0; i < nC; i++) {
       const x = x0 + r() * (x1 - x0), t = top(x);
@@ -114,7 +114,34 @@ export function paintCrag(ctx, r, nz, o) {
       stroke(g, pts, { width: [r.range(1.2, 3.2), 0.4], profile: 'taper', color: ink(vD * 0.7, a * r.range(0.5, 0.95)), rng: r, rough: 0.6 });
     }
   }
-  // 4. dark wet band and ragged contour under the top
+  // 3b. axe-cut strokes: long side-of-brush strokes dragged down along the fissures (slightly fanned),
+  //     dark at the start, plus a crisp broken contour line down the steep parts of the profile
+  if (o.axe) {
+    for (const F of o.fissures || []) {
+      const segL = F.pts.slice(1).map((q, j) => Math.hypot(q[0] - F.pts[j][0], q[1] - F.pts[j][1])), tot = segL.reduce((p, q) => p + q, 0);
+      const nA = Math.round(tot / 14 * o.axe * (F.a ?? 0.6));
+      for (let i = 0; i < nA; i++) {
+        let d = r() * tot * 0.85, j = 0; while (j < segL.length - 1 && d > segL[j]) { d -= segL[j]; j++; }
+        const [ax, ay] = F.pts[j], [qx, qy] = F.pts[j + 1], s = d / segL[j];
+        const side = r() < 0.5 ? -1 : 1, off = side * r.range(0.1, 0.6) * (F.w ?? 30);
+        const x = ax + (qx - ax) * s + off, y = ay + (qy - ay) * s;
+        const p = presRaw(x, y) * (0.5 + 0.5 * lit(x)); if (p < 0.15) continue;
+        const L = r.range(24, 70), ang = Math.atan2(qy - ay, qx - ax) + side * r.range(0.05, 0.3);
+        const pts = []; for (let q = 0; q <= 5; q++) { const t = q / 5; pts.push([x + Math.cos(ang) * L * t + nz.n2(x / 20, t * 2) * 2, y + Math.sin(ang) * L * t]); }
+        if (r() < 0.6) dryStroke(g, pts, { width: r.range(6, 15), bristles: 5, color: ink(vD * 0.6, 1), alpha: r.range(0.2, 0.45) * p, dry: 0.5, rng: r, profile: 'taper' });
+        else stroke(g, pts, { width: [r.range(1.5, 3.5), 0.3], profile: 'taper', color: ink(vD * 0.5, r.range(0.35, 0.7) * p), rng: r, rough: 0.6 });
+      }
+    }
+    let run = [];
+    const flush = () => { if (run.length > 3) stroke(g, run, { width: [r.range(1.6, 3.4), 0.5], profile: 'taper', color: ink(vD * 0.4, r.range(0.5, 0.85)), rng: r, rough: 0.6 }); run = []; };
+    for (let j = 1; j < prof.length; j++) {
+      const [ax, ay] = prof[j - 1], [qx, qy] = prof[j];
+      if (Math.abs(qy - ay) < Math.abs(qx - ax) * 1.2) { flush(); continue; }
+      const n = Math.ceil(Math.hypot(qx - ax, qy - ay) / 6);
+      for (let q = 0; q <= n; q++) { const t = q / n, x = ax + (qx - ax) * t, y = ay + (qy - ay) * t; if (presRaw(x, y) < 0.25) { flush(); continue; } run.push([x + nz.n2(y / 14, 2.2) * 1.5 - Math.sign(qx - ax || 1) * 1.5, y]); if (run.length > 18 && r() < 0.2) flush(); }
+    }
+    flush();
+  }  // 4. dark wet band and ragged contour under the top
   for (let x = x0; x <= x1; x += r.range(3, 7)) {
     const t = top(x);
     if (r() < 0.75) blob(g, x, t + r.range(1, 9), r.range(3, 9), { color: ink(vD * 0.6, r.range(0.35, 0.8)), rng: r, irregular: 0.55, squash: 0.7 });

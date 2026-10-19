@@ -129,7 +129,13 @@ export function snowPine(g0, rng, x, y, h, { lean = 0, reach = 0, tone: tv = 0.0
   const top = spine[8];
   pads.push([[top[0], top[1] + 3, h * 0.08], [top[0] - h * 0.07, top[1] + h * 0.06, h * 0.07], [top[0] + h * 0.07, top[1] + h * 0.07, h * 0.07]]);
   for (const tf of pads) for (const [tx, ty, r] of tf) tuft(g, rng, tx, ty, r, ink);
-  snowCaps(cv, k, { cap: h * 0.08, mound: h * 0.05, blur: Math.max(2, h * 0.055), freq: 0.08, lobes: 0.6, seed: (rng() * 1000) | 0, rim: [214, 218, 223], pokeV: 0.55 });
+  // finer, broken snow (a dusting on every tuft, not one smooth pillow per pad) ...
+  snowCaps(cv, k, { cap: h * 0.06, mound: h * 0.035, blur: Math.max(1.5, h * 0.03), freq: 0.15, lobes: 1, seed: (rng() * 1000) | 0, rim: [214, 218, 223], rimAmt: 0.03, under: [220, 223, 227], ragged: 0.3, round: 1.2, pokeV: 0.45 });
+  // ... plus loose flecks of snow on the upper side of the tufts
+  for (const tf of pads) for (const [tx, ty, r] of tf) {
+    const nfl = 2 + ((rng() * 4) | 0);
+    for (let j = 0; j < nfl; j++) blob(g, tx + (rng() - 0.5) * r * 1.4, ty - r * (0.1 + rng() * 0.45), r * (0.1 + rng() * 0.16), { color: SNOW, alpha: 0.95, rng, irregular: 0.4, squash: 0.55, sides: 7 });
+  }
   g0.drawImage(cv, bx, by, bw, bh);
 }
 

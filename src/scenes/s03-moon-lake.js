@@ -12,7 +12,7 @@ import { makeLake, makeGlitter, makeReflection } from '../lib/water.js';
 import { bakeArch, paintPavilion } from '../lib/architecture.js';
 import { makeMaple } from '../lib/flora.js';
 import { makeDomes } from './s03/domes.js';
-import { paintFoliageBand } from './s03/foliage.js';
+import { paintFoliageBand, paintCanopy } from './s03/foliage.js';
 import { paintCrag } from './s03/crag.js';
 import { wetInk } from '../lib/peaks.js';
 
@@ -62,10 +62,11 @@ export default {
         ctx.filter = 'blur(2.5px)'; ctx.strokeStyle = `rgba(66,62,58,${a * 0.35})`; ctx.lineWidth = 3; ctx.stroke(p); ctx.restore();
       };
       range([[230, 430], [290, 372], [350, 322], [395, 306], [440, 316], [500, 345], [560, 380], [620, 420]], 470, 0.2, 1);
-      range([[470, 420], [500, 372], [540, 344], [585, 336], [640, 358], [700, 400]], 480, 0.26, 2);
-      range([[1000, 470], [1060, 420], [1110, 394], [1160, 384], [1220, 400], [1290, 430], [1360, 470]], 520, 0.2, 3);
-      range([[1040, 480], [1090, 444], [1130, 430], [1180, 446], [1250, 470]], 520, 0.28, 4);
-      range([[1180, 500], [1240, 452], [1290, 440], [1340, 446], [1400, 468], [1470, 500]], 530, 0.3, 5);
+      range([[470, 420], [520, 368], [575, 331], [620, 352], [662, 375], [700, 400]], 480, 0.26, 2);
+      range([[820, 452], [875, 402], [930, 384], [956, 373], [985, 392], [1025, 412], [1070, 442]], 500, 0.24, 6);
+      range([[1000, 482], [1040, 456], [1062, 437], [1090, 452], [1112, 460], [1150, 426], [1200, 438], [1262, 413], [1320, 440], [1400, 482]], 525, 0.22, 3);
+      range([[1010, 492], [1040, 470], [1064, 448], [1095, 468], [1130, 482]], 525, 0.32, 4);
+      range([[1180, 500], [1240, 458], [1290, 446], [1340, 452], [1400, 470], [1470, 500]], 530, 0.26, 5);
     });
     const far = { layer: (lo) => api.tex(farSrc, { rect: FR, ...lo }) };
     layers.push(far.layer({ z: 10, name: 'far' }));
@@ -74,20 +75,24 @@ export default {
     // ---------------------------------------------------------------- centre and right peaks
     // right peaks: two rounded granite domes with a dark cleft (B behind, A in front), a smaller dome left,
     // a lower dark peak at the right edge; all dissolving into the mist by y ~520
-    const right = makeDomes(api, { rect: [1320, 110, 760, 540], paper: PAPER, defaults: { shadow: -1, trees: 0.35, treeH: 13, t: 0.55, capH: 42, p: 1, body: 1.35, crown: 1.4 }, domes: [
-      { cx: 1925, top: 222, wl: 95, wr: 140, base: 620, tone: 0.84, t: 0.45, fade: [400, 520], seed: 26 },
-      { cx: 1940, top: 425, wl: 90, wr: 130, base: 650, tone: 0.9, fade: [540, 640], seed: 24 },
-      { cx: 1482, top: 358, wl: 106, wr: 120, base: 620, tone: 0.78, t: 0.32, capH: 34, fade: [445, 535], seed: 23 },
-      { cx: 1658, top: 221, wl: 133, wr: 150, base: 620, tone: 0.86, t: 0.34, capH: 32, fade: [430, 530], seed: 25 },
-      { cx: 1786, top: 175, wl: 103, wr: 95, base: 620, tone: 0.92, t: 0.56, capH: 40, fade: [420, 525], seed: 22 },
+    // each dome carries nested slabs (lit inner tongues outlined by creases, shoulders on the flanks)
+    const right = makeDomes(api, { rect: [1320, 110, 760, 540], paper: PAPER, defaults: { shadow: -1, trees: 0.35, treeH: 13, t: 0.55, capH: 42, p: 1, body: 1.5, crown: 1.8, mottle: 0.5, lit: 0.4, dots: 2.6, cun: 2.6, shadeK: 0.3, rough: 1.7 }, wet: { mottle: 0.25, bleed: 0.18 }, domes: [
+      { cx: 1925, top: 222, wl: 95, wr: 140, base: 620, tone: 0.84, t: 0.45, capH: 70, fade: [400, 520], seed: 26,
+        slabs: [{ dx: -20, top: 262, wl: 50, wr: 60, t: 0.55, capH: 50 }] },
+      { cx: 1940, top: 425, wl: 90, wr: 130, base: 650, tone: 0.9, capH: 60, fade: [540, 640], seed: 24 },
+      { cx: 1482, top: 356, wl: 100, wr: 116, base: 620, tone: 0.8, t: 0.3, capH: 60, fade: [445, 535], seed: 23,
+        slabs: [{ dx: -28, top: 392, wl: 52, wr: 44, t: 0.45, capH: 40 }, { dx: 40, top: 405, wl: 40, wr: 50, t: 0.5, capH: 30 }] },
+      { cx: 1656, top: 221, wl: 128, wr: 150, base: 620, tone: 0.86, t: 0.33, capH: 100, fade: [430, 530], seed: 25, shadow: 1,
+        slabs: [{ dx: -62, top: 288, wl: 72, wr: 52, t: 0.42, capH: 46, shadow: -1 }, { dx: 30, top: 262, wl: 44, wr: 52, t: 0.55, capH: 50 }, { dx: -20, top: 345, wl: 50, wr: 40, t: 0.6, capH: 40, shadow: -1 }] },
+      { cx: 1786, top: 175, wl: 103, wr: 95, base: 620, tone: 0.92, t: 0.5, capH: 110, fade: [420, 525], seed: 22,
+        slabs: [{ dx: 6, top: 230, wl: 42, wr: 44, t: 0.66, capH: 64, shadow: 1 }, { dx: 52, top: 262, wl: 34, wr: 40, t: 0.6, capH: 40 }, { dx: -48, top: 300, wl: 40, wr: 30, t: 0.6, capH: 40 }] },
     ] });
     layers.push(right.layer({ z: 5, name: 'right-peaks' }));
-    // centre peaks: a tall main spire with secondaries stepping down to the right, white mist at their feet
-    const centre = makeDomes(api, { rect: [540, 260, 540, 340], paper: PAPER, defaults: { shadow: -1, trees: 0.4, treeH: 11, t: 0.35, capH: 30, p: 1, body: 1.25, crown: 1.2 }, domes: [
-      { cx: 985, top: 460, wl: 52, wr: 56, base: 600, tone: 0.62, capH: 22, fade: [500, 585], seed: 34 },
-      { cx: 725, top: 302, wl: 285, wr: 205, t: 0.15, base: 600, tone: 0.82, capH: 34, fade: [455, 560], seed: 33 },
-      { cx: 885, top: 392, wl: 62, wr: 66, base: 600, tone: 0.74, capH: 26, fade: [475, 570], seed: 32 },
-      { cx: 585, top: 402, wl: 70, wr: 70, base: 600, tone: 0.7, capH: 24, fade: [470, 565], seed: 35 },
+    // centre massif: one pointed summit, a left shoulder, secondaries S1/S2 attached down the right ridge
+    const centre = makeDomes(api, { rect: [500, 260, 580, 340], paper: PAPER, defaults: { shadow: -1, trees: 0.4, treeH: 11, p: 1, body: 1.4, crown: 1.6, mottle: 0.5, lit: 0.4, dots: 2.4, cun: 2.4, shadeK: 0.3, rough: 1.5 }, wet: { mottle: 0.25, bleed: 0.18 }, domes: [
+      { cx: 725, top: 302, wl: 160, wr: 140, a: 1.5, b: 0.75, base: 600, tone: 0.82, fade: [455, 565], seed: 33,
+        slabs: [{ dx: -25, top: 334, wl: 70, wr: 60, a: 1.6, b: 0.7 }, { dx: -128, top: 404, wl: 90, wr: 80, a: 2.2, b: 0.45 },
+          { dx: 50, top: 372, wl: 45, wr: 45, a: 1.6, b: 0.7 }, { dx: 162, top: 396, wl: 75, wr: 75, a: 1.6, b: 0.7, shadow: 1 }, { dx: 250, top: 468, wl: 52, wr: 52, a: 1.6, b: 0.7 }] },
     ] });
     layers.push(centre.layer({ z: 5.5, name: 'centre-peaks' }));
     layers.push(makeMist(api, { top: 520, bottom: 680, z: 4.5, lobe: 70, seed: 2, drift: 8, density: 0.6, holes: 0.3, softness: 5, shade: 0.06, wispsAbove: 0, color: PAPER }));
@@ -99,7 +104,11 @@ export default {
       const r = api.rng(61), nz = api.noise(62);
       const forest = (x0, x1, topF, n, h, tn) => { for (let i = 0; i < n; i++) { const x = x0 + (x1 - x0) * (i + r()) / n; paintConifer(ctx, x, topF(x) + h * 0.25, h * r.range(0.6, 1.2), { kind: r() < 0.7 ? 'fir' : 'pine', tone: tn + r.range(0, 0.1), paper: PAPER, seed: (r() * 1e6) | 0, detail: 0 }); } };
       const pale = paintCrag(ctx, r, nz, { profile: [[690, 640], [720, 600], [760, 584], [820, 578], [880, 586], [940, 600], [990, 640]], base: 650, fade: [585, 640], tone: 0.48, paper: PAPER, k, dabs: 0.6, speckle: 0.5, body: 0.45 });
-      forest(700, 980, pale.top, 26, 28, 0.45);
+      // soft grey tree clumps in the mist (a regular row of firs read as a comb), a few firs among them
+      ctx.save(); ctx.filter = `blur(${(1.3 * k).toFixed(1)}px)`;
+      for (let x = 708; x < 982; x += r.range(11, 20)) paintCanopy(ctx, r, x, pale.top(x) + r.range(4, 12), r.range(9, 18), { v: 0.4 + r.range(0, 0.14), paper: PAPER });
+      ctx.restore();
+      forest(730, 950, pale.top, 6, 30, 0.42);
       const hill = paintCrag(ctx, r, nz, { profile: [[1263, 662], [1298, 612], [1343, 590], [1378, 568], [1412, 546], [1447, 534], [1493, 544], [1528, 576], [1550, 620], [1565, 662]], base: 668, fade: [610, 666], tone: 0.75, paper: PAPER, k, dabs: 0.7, body: 0.9, speckle: 0.25, cun: 1.2 });
       forest(1270, 1560, hill.top, 26, 40, 0.26);
       const islet = paintCrag(ctx, r, nz, { profile: [[1240, 662], [1262, 640], [1300, 632], [1330, 644], [1350, 662]], base: 666, fade: [645, 664], tone: 0.7, paper: PAPER, k, body: 0.6 });
@@ -111,7 +120,7 @@ export default {
 
     // ---------------------------------------------------------------- lake, islands, reflections
     const LZ = 2.4;
-    layers.push(makeLake(api, { y: LAKE_Y, variant: 'night', paper: PAPER, z: LZ, density: [0.36, 0.5, 0.66, 0.4], fog: [90, 0.75, 0, 0], persp: 1.1, grain: 0.015, blotch: 0.08, crackle: 0.02, bands: 0.015, mottle: 0.04 }));
+    layers.push(makeLake(api, { y: LAKE_Y, variant: 'night', paper: PAPER, z: LZ, density: [0.3, 0.42, 0.54, 0.34], fog: [90, 0.75, 0, 0], persp: 1.1, grain: 0.015, blotch: 0.08, crackle: 0.02, bands: 0.015, mottle: 0.04 }));
     layers.push(makeWaterFog(api, { top: 650, z: LZ, seed: 4, color: PAPER, density: 0.5 }));
     const island = (rect, draw, refl) => {
       const raw = api.bakeCanvas(rect[2], rect[3], (ctx, { k }) => { ctx.translate(-rect[0], -rect[1]); draw(ctx, k); });
@@ -134,14 +143,14 @@ export default {
       { profile: [[900, 733], [925, 716], [955, 696], [990, 680], [1030, 670], [1070, 676], [1100, 694], [1130, 716], [1155, 733]], base: 740, fade: [716, 740], trees: [[975, 1100, 9, 52]],
         fissures: [{ pts: [[1060, 674], [1066, 704], [1070, 732]], w: 26, a: 0.6 }, { pts: [[990, 682], [994, 710], [996, 732]], w: 22, a: 0.5 }] },
       { profile: [[1130, 733], [1150, 716], [1180, 708], [1205, 712], [1230, 722], [1252, 733]], base: 740, fade: [718, 740], trees: [[1150, 1215, 4, 34]] },
-    ]), { strength: 1.0, amp: 2, fade: 260, stretch: 2.0, breakup: 0.15, smear: 10, hblur: 2, tint: [0.8, 0.79, 0.78] }));
+    ]), { strength: 0.9, amp: 2, fade: 175, stretch: 2.0, breakup: 0.15, smear: 10, hblur: 2, tint: [0.8, 0.79, 0.78] }));
     // right island (waterline 729)
     layers.push(...island([1490, 560, 410, 175], islandDraw(73, [
       { profile: [[1516, 729], [1540, 716], [1580, 700], [1610, 690], [1650, 700], [1680, 712], [1710, 729]], base: 736, fade: [706, 734], trees: [[1530, 1600, 4, 40]] },
       { profile: [[1570, 729], [1600, 682], [1630, 656], [1660, 646], [1700, 650], [1740, 674], [1762, 702], [1790, 729]], base: 736, fade: [706, 736], trees: [[1610, 1745, 10, 92]],
         fissures: [{ pts: [[1720, 668], [1730, 700], [1735, 728]], w: 30, a: 0.6 }, { pts: [[1640, 656], [1644, 690], [1648, 726]], w: 24, a: 0.4 }] },
       { profile: [[1740, 729], [1760, 712], [1800, 704], [1840, 712], [1866, 729]], base: 736, fade: [712, 734], trees: [[1770, 1845, 4, 40]] },
-    ]), { strength: 1.0, amp: 2, fade: 260, stretch: 2.0, breakup: 0.15, smear: 10, hblur: 2, tint: [0.8, 0.79, 0.78] }));
+    ]), { strength: 0.9, amp: 2, fade: 175, stretch: 2.0, breakup: 0.15, smear: 10, hblur: 2, tint: [0.8, 0.79, 0.78] }));
     layers.push(makeReflection(api, hillSrc, { rect: HR, y: 664, z: LZ + 0.01, paper: PAPER, strength: 0.6, amp: 2, fade: 200, stretch: 1.4, breakup: 0.15, smear: 10, hblur: 2, tint: [0.8, 0.79, 0.78], name: 'hills-refl' }));
     const glit = makeGlitter(api, {
       y: LAKE_Y, variant: 'night', paper: PAPER, z: LZ,
@@ -161,23 +170,23 @@ export default {
     const cragRaw = api.bakeCanvas(CR[2], CR[3], (ctx, { k }) => {
       ctx.translate(-CR[0], -CR[1]);
       const r = api.rng(51), nz = api.noise(52);
-      const crag = (o) => paintCrag(ctx, r, nz, { paper: PAPER, k, ...o });
+      const crag = (o) => paintCrag(ctx, r, nz, { paper: PAPER, k, axe: 1, cunBlur: 1, dabA: 0.3, body: 0.4, ...o });
       // foliage: smaller, more numerous, slightly greyer clumps (big black blobs read as broccoli)
-      const band = (pts, o) => paintFoliageBand(ctx, r, nz, pts, { paper: PAPER, back: 0.4, greys: 0.9, separation: 0.12, ...o, size: [o.size[0] * 0.55, o.size[1] * 0.55], density: o.density * 2.8, v: o.v + 0.04 });
+      const band = (pts, o) => paintFoliageBand(ctx, r, nz, pts, { paper: PAPER, back: 0.4, greys: 0.9, separation: 0.12, ...o, size: [o.size[0] * 0.55, o.size[1] * 0.55], density: o.density * 2.8, v: o.v + 0.01 });
       const tree = (x, y, h, kind, tn = 0.09) => paintConifer(ctx, x, y, h, { kind, tone: tn + r.range(0, 0.04), paper: PAPER, seed: (r() * 1e6) | 0 });
       // knoll 1 (back)
-      crag({ profile: [[470, 700], [490, 640], [530, 622], [580, 616], [630, 624], [670, 642], [705, 664], [722, 720], [730, 820], [736, 1000]], base: 1000, fade: [740, 900], tone: 0.62, cun: 1.5, dabs: 0.5, speckle: 0.5, light: [{ x: 600, w: 50, a: 0.6 }],
-        fissures: [{ pts: [[700, 660], [712, 740], [718, 840]], w: 40, a: 0.6 }, { pts: [[560, 625], [566, 720], [570, 820]], w: 30, a: 0.45 }, { pts: [[620, 628], [626, 700], [630, 780]], w: 70, a: 0.35, n: 2 }, { pts: [[500, 640], [505, 720], [510, 800]], w: 60, a: 0.4, n: 2 }] });
+      crag({ profile: [[470, 700], [490, 640], [530, 622], [580, 616], [630, 624], [670, 642], [705, 664], [722, 720], [730, 820], [736, 1000]], base: 1000, fade: [760, 940], tone: 0.8, cun: 1.5, dabs: 0.5, speckle: 0.5, light: [{ x: 600, w: 50, a: 0.6 }],
+        fissures: [{ pts: [[700, 660], [712, 740], [718, 840]], w: 50, a: 0.95 }, { pts: [[560, 625], [566, 720], [570, 820]], w: 30, a: 0.45 }, { pts: [[620, 628], [626, 700], [630, 780]], w: 70, a: 0.35, n: 2 }, { pts: [[500, 640], [505, 720], [510, 800]], w: 60, a: 0.4, n: 2 }] });
       tree(505, 636, 96, 'fir', 0.06); tree(574, 626, 124, 'fir', 0.04); tree(545, 630, 70, 'pine', 0.2); tree(620, 630, 80, 'fir', 0.3);
       band([[470, 650], [520, 628], [580, 622], [640, 630], [700, 664]], { band: 50, size: [16, 36], density: 3.0, v: 0.36, pines: 0.15 });
       // knoll 2
-      crag({ profile: [[470, 1000], [560, 820], [620, 740], [650, 690], [690, 662], [735, 680], [780, 712], [815, 752], [850, 810], [880, 880], [905, 960], [920, 1080]], base: 1080, fade: [820, 980], dabs: 0.5, tone: 0.88, cun: 1.5, speckle: 0.5, light: [{ x: 750, w: 45, a: 0.6 }],
-        fissures: [{ pts: [[815, 752], [830, 830], [838, 930]], w: 40, a: 0.65 }, { pts: [[730, 684], [736, 780], [740, 880]], w: 28, a: 0.45 }, { pts: [[690, 668], [695, 740], [700, 820]], w: 70, a: 0.35, n: 2 }, { pts: [[780, 716], [784, 790], [788, 860]], w: 60, a: 0.35, n: 2 }] });
+      crag({ profile: [[470, 1000], [560, 820], [620, 740], [650, 690], [690, 662], [735, 680], [780, 712], [815, 752], [850, 810], [880, 880], [905, 960], [920, 1080]], base: 1080, fade: [860, 1020], dabs: 0.5, tone: 0.88, cun: 1.5, speckle: 0.5, light: [{ x: 750, w: 45, a: 0.6 }],
+        fissures: [{ pts: [[815, 752], [830, 830], [838, 930]], w: 50, a: 0.95 }, { pts: [[730, 684], [736, 780], [740, 880]], w: 28, a: 0.45 }, { pts: [[690, 668], [695, 740], [700, 820]], w: 70, a: 0.35, n: 2 }, { pts: [[780, 716], [784, 790], [788, 860]], w: 60, a: 0.35, n: 2 }] });
       tree(650, 632, 60, 'fir'); tree(692, 656, 52, 'pine'); tree(740, 688, 54, 'fir'); tree(790, 724, 44, 'fir');
       band([[650, 694], [700, 668], [740, 686], [790, 720], [830, 762]], { band: 60, size: [18, 42], density: 3.6, v: 0.02, pines: 0.2 });
       // knoll 3 (front right, descending into the mist)
-      crag({ profile: [[700, 1150], [752, 830], [790, 790], [835, 796], [868, 838], [898, 892], [935, 950], [975, 1010], [1010, 1080], [1030, 1150]], base: 1150, fade: [900, 1040], dabs: 0.5, tone: 0.9, cun: 1.5, speckle: 0.5, light: [{ x: 840, w: 45, a: 0.6 }],
-        fissures: [{ pts: [[900, 896], [920, 980], [930, 1060]], w: 36, a: 0.65 }, { pts: [[800, 796], [806, 880], [810, 960]], w: 70, a: 0.4, n: 2 }, { pts: [[860, 830], [866, 900], [870, 980]], w: 50, a: 0.35, n: 2 }] });
+      crag({ profile: [[700, 1150], [752, 830], [790, 790], [835, 796], [868, 838], [898, 892], [935, 950], [975, 1010], [1010, 1080], [1030, 1150]], base: 1150, fade: [940, 1080], dabs: 0.5, tone: 0.9, cun: 1.5, speckle: 0.5, light: [{ x: 840, w: 45, a: 0.6 }],
+        fissures: [{ pts: [[900, 896], [920, 980], [930, 1060]], w: 46, a: 0.95 }, { pts: [[800, 796], [806, 880], [810, 960]], w: 70, a: 0.4, n: 2 }, { pts: [[860, 830], [866, 900], [870, 980]], w: 50, a: 0.35, n: 2 }] });
       tree(905, 905, 56, 'pine'); tree(944, 990, 50, 'fir');
       band([[752, 834], [800, 796], [840, 802], [880, 852], [915, 920], [945, 990]], { band: 64, size: [18, 42], density: 3.6, v: 0.02, pines: 0.25 });
       // sheer pavilion cliff
@@ -196,18 +205,20 @@ export default {
       band([[380, 520], [420, 560], [450, 620], [460, 700]], { band: 30, size: [10, 24], density: 2.2, v: 0.05, pines: 0 });
       // lower-left slope
       crag({ profile: [[-220, 850], [-100, 826], [0, 804], [60, 786], [120, 766], [180, 750], [250, 732], [300, 724], [340, 730], [368, 752], [384, 800], [394, 900], [400, 1000], [404, 1150]], base: 1150,
-        fade: (x) => [900 + x * 0.25, 1120], tone: 0.95, lean: -0.5, dabs: 0.6, light: [{ x: 170, w: 90, a: 0.7 }],
+        fade: (x) => [920 + x * 0.25, 1140], tone: 1.0, lean: -0.5, dabs: 0.6, body: 1.0, speckle: 0.3, light: [{ x: 190, w: 70, a: 0.75 }],
         fissures: [{ pts: [[330, 730], [300, 820], [262, 920], [220, 1020]], w: 70, a: 0.75, n: 6 }, { pts: [[200, 752], [160, 840], [120, 940]], w: 44, a: 0.45 }, { pts: [[60, 788], [30, 870], [0, 950]], w: 40, a: 0.4 }] });
       band([[-60, 800], [0, 806], [60, 788], [120, 768], [180, 752], [250, 734], [300, 726], [345, 734]], { band: 60, size: [16, 38], density: 2.8, v: 0.04, pines: 0.15 });
       band([[230, 740], [280, 732], [330, 740], [360, 770]], { band: 60, size: [20, 44], density: 3.4, v: 0.02, pines: 0.05 });
       band([[-40, 860], [20, 880], [80, 920], [120, 990], [140, 1060]], { band: 120, size: [22, 48], density: 3.4, v: 0.03, pines: 0.1 });
       // small front rock with a pine
-      crag({ profile: [[376, 1150], [380, 890], [420, 858], [470, 850], [500, 864], [520, 900], [532, 960], [545, 1150]], base: 1150, fade: [960, 1120], tone: 1.0,
+      crag({ profile: [[376, 1150], [380, 890], [420, 858], [470, 850], [500, 864], [520, 900], [532, 960], [545, 1150]], base: 1150, fade: [960, 1120], tone: 1.0, body: 0.6, speckle: 0.4,
         fissures: [{ pts: [[500, 866], [515, 940], [525, 1020]], w: 40, a: 0.8 }] });
       tree(450, 862, 64, 'pine', 0.02);
       band([[380, 892], [420, 862], [470, 854], [505, 870], [525, 905]], { band: 50, size: [16, 36], density: 3.2, v: 0.02, pines: 0.1 });
     }, { scale: 1 });
     const cragSrc = wetInk(api, cragRaw, { paper: PAPER, ink: [12, 11, 10], soft: 1.6, blur: 0.15, bleed: 0.35, edge: 0.5, granulation: 0.32, mottle: 0.4, seed: 3 });
+    // white mist behind the cliff card: where the crags dissolve they stand in mist, not on the lake
+    layers.push(makeMist(api, { top: 830, bottom: 1180, z: 1.25, lobe: 70, seed: 6, drift: 6, density: 1.0, holes: 0, softness: 8, extent: [330, 1080, 140], color: PAPER }));
     layers.push(api.tex(cragSrc, { rect: CR, z: 1.2, name: 'cliff', sway: { amp: 0.6, freq: 0.2, scale: 260, power: 2, anchor: [400, 1200], radius: 900 } }));
 
     // pavilion and maples
@@ -221,13 +232,13 @@ export default {
       { x: 232, y: 742, height: 130, width: 150, lean: 4, shape: 'round', crown: [232, 672, 84, 52], leafSize: 3.8, density: 1.4, depth: 5, pale: 0.3 },
     ] });
     layers.push(mapleTop.layer({ z: 1.2, amp: 1.5 }), mapleLow.layer({ z: 1.2, amp: 2 }));
-    layers.push(makeMist(api, { top: 850, bottom: 1180, z: 1.1, lobe: 80, seed: 5, drift: 12, density: 1.0, holes: 0, softness: 10, extent: [430, 1060, 170], color: PAPER }));
+    layers.push(makeMist(api, { top: 925, bottom: 1180, z: 1.1, lobe: 80, seed: 5, drift: 12, density: 1.0, holes: 0, softness: 10, extent: [430, 1060, 170], color: PAPER }));
 
     // ---------------------------------------------------------------- hero pine
     const pine = makePine(api, {
       seed: 31, height: 440, gnarl: 0.85, scale: 1,
       spine: [[60, 430], [70, 370], [90, 300], [100, 240], [118, 180], [148, 132], [165, 92]],
-      trunkWidth: 36, taper: 0.45, flare: 0.15, barkTone: 0.5, knobs: 0.3, tone: 0.05,
+      trunkWidth: 36, taper: 0.45, flare: 0.15, barkTone: 0.3, barkDensity: 2.2, knobs: 0.45, tone: 0.05,
       limbs: [
         { pts: [[145, 190], [210, 196], [266, 192], [330, 190], [400, 200], [470, 220], [555, 247]], w: 12, subs: 4 },
         { pts: [[160, 112], [200, 84], [260, 70], [335, 74]], w: 10, subs: 3 },
@@ -240,7 +251,7 @@ export default {
         { pts: [[160, 110], [190, 60], [230, 30], [280, 22]], w: 7, subs: 2 },
       ],
       // airier needle fans: fewer overlapping pads, more and finer needles, a light core
-      padSize: 64, padAspect: 0.42, needle: 11, padDensity: 2.4, haze: 0, wet: 0.25, soft: 0.18, core: 0.08, needleWidth: 0.12, needles: 13,
+      padSize: 64, padAspect: 0.42, needle: 14, padDensity: 3.0, haze: 0, backPads: 0.03, wet: 0.15, soft: 0.18, core: 0.08, needleWidth: 0.12, needles: 13,
       swayAmp: 3, swayFreq: 0.2,
     });
     layers.push(pine.layer({ z: 1.15 }));

@@ -23,7 +23,7 @@ function rosette(ctx, x, y, r, rng, col, alpha, n, paper) {
     const f = paper && rng() < 0.15 ? 0.2 + rng() * 0.3 : 0;
     const c = f ? col.map((v, k) => v + (paper[k] - v) * f) : col;
     ctx.fillStyle = rgba(c, alpha * (0.75 + rng() * 0.25));
-    leaf(ctx, cx - Math.cos(dir) * len * 0.4, cy - Math.sin(dir) * len * 0.4, dir, len, len * (0.5 + rng() * 0.25));
+    leaf(ctx, cx - Math.cos(dir) * len * 0.4, cy - Math.sin(dir) * len * 0.4, dir, len, len * (0.36 + rng() * 0.2));
   }
 }
 // base (x, y), overall height h, opts: tone (0 ink..1 paper), paper, spread (deg), lean (deg), stems, leaf (size px), density

@@ -143,6 +143,12 @@ export function paintCrag(ctx, api, P, paper, k) {
   const gr = g.createLinearGradient(0, top0, 0, P.base);
   gr.addColorStop(0, ink(vb, Math.min(0.8, 0.46 * body))); gr.addColorStop(0.4, ink(vb, Math.min(0.7, 0.34 * body))); gr.addColorStop(0.8, ink(vb, 0.12 * body)); gr.addColorStop(1, ink(vb, 0));
   g.fillStyle = gr; g.fill(path);
+  // optional dark foot (a rock body standing in bright water reads dark at the waterline)
+  if (P.baseDark) {
+    const gb = g.createLinearGradient(0, top0 + H * 0.3, 0, P.base);
+    gb.addColorStop(0, ink(v, 0)); gb.addColorStop(0.7, ink(v + (1 - v) * 0.12, P.baseDark * 0.6)); gb.addColorStop(1, ink(v, P.baseDark));
+    g.fillStyle = gb; g.fill(path);
+  }
 
   // nearest lobe and the side of it a point is on: -1 left edge .. +1 right edge; shade 1 = shadow flank
   const lobeAt = (x) => { let L = P.lobes[0], best = 1e9; for (const lb of P.lobes) { const d = Math.abs(x - lb.x) / (x < lb.x ? lb.wl : lb.wr); if (d < best) { best = d; L = lb; } } return L; };
@@ -220,7 +226,7 @@ export function paintCrag(ctx, api, P, paper, k) {
       if (r() > 0.3 + 0.7 * shade) continue;
       const dd = Math.pow(r(), 1.5) * H * hf * 0.62;
       const y = sil(x) + 3 + dd;
-      const len = (14 + 44 * r()) * sc * (0.6 + 0.6 * hf);
+      const len = (22 + 70 * r() * r() + 20 * r()) * sc * (0.6 + 0.6 * hf) * (P.fibreLen ?? 1);
       const ang = Math.max(-0.65, Math.min(0.65, side * 0.55)) + r.range(-0.1, 0.1);
       const bend = r.range(-0.3, 0.3);
       const nS = 2 + ((r() * 4) | 0), sp = (2.4 + 3 * r()) * sc;
@@ -353,6 +359,9 @@ export function paintCrag(ctx, api, P, paper, k) {
       const n = nz.fbm2(X / 190, Y / 40, 3) * 0.8 + nz.n2(X / 45, Y / 18) * 0.25;
       const Yn = Y + n * Math.max(20, hh) * 0.22;
       let m = 1 - ss(f0, Math.max(f0 + 4, f1), Yn);
+      // low outer flanks melt into the mist instead of standing as thin slivers
+      if (P.flankFade) m *= ss(0.04, P.flankFade, hh / H);
+      if (P.baseFade) m *= 1 - ss(P.baseFade[0], P.baseFade[1], Yn);
       for (const [fb, hw, st] of bands) {
         const d = Math.abs(Yn - (P.base - H * (1 - fb))) / (H * hw);
         m *= 1 - st * (1 - ss(0.2, 1, d));

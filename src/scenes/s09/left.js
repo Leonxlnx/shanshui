@@ -43,7 +43,7 @@ export function buildLeft(api, { paper }) {
   // the back granite columns are painted in the same 'cun' pillar style as the peaks (rounded tops,
   // dark ragged contours, hemp-fibre strokes, lit facets); rock.js outlines above are kept for reference
   void cTemple; void cBig; void cRight;
-  const LC = { ...BRUSH, trees: 0, mossK: 2.6, valK: 2.1, washK: 3.4, litK: 0.5, cunK: 1.1 };
+  const LC = { ...BRUSH, trees: 0, mossK: 2.6, valK: 2.0, washK: 2.5, faceK: 0.85, litK: 0.6, cunK: 1.1, fibreK: 1.8, ledgeK: 0.35 };
   const rockB = makePeaks(api, {
     paper, wet: WET, rect: [-240, 300, 940, 720],
     peaks: [
@@ -58,7 +58,7 @@ export function buildLeft(api, { paper }) {
   // waterfall in front of the back columns
   const falls = makeWaterfall(api, {
     lip: FALLS.lip, height: FALLS.height, bendL: 26, bendR: 40, curve: 5, driftL: 4, driftR: 22, arch: 3,
-    speed: 220, z: Z_BACK, seed: 9.1, sheets: 2, streakScale: 4, thin: 0.25, sideShade: 0.1, fade: 0.78, lineWidth: 1.6,
+    speed: 220, z: Z_BACK, seed: 9.1, sheets: 0, streakScale: 4, thin: 0.1, backingDark: 0.3, sideShade: 0.1, fade: 0.78, lineWidth: 1.6,
     spray: false, paper,
   });
   back.push(...falls.layers);
@@ -76,6 +76,10 @@ export function buildLeft(api, { paper }) {
     paintClump(ctx, [[600, 680], [630, 740], [640, 800]], { h: [34, 60], tone: 0.05, spacing: 0.8, seed: 47, paper, under: 0.6 });
     paintClump(ctx, [[-20, 396], [40, 398], [100, 430], [150, 448]], { h: [40, 76], tone: 0.08, seed: 43, paper, under: 0.6 });
     paintClump(ctx, [[160, 546], [220, 526], [280, 552]], { h: [28, 52], tone: 0.05, seed: 44, paper, under: 0.7 });
+    // foliage running down the cliff edges and under the temple terrace (ref: the cliff is mostly black pine)
+    paintClump(ctx, [[506, 530], [516, 600], [512, 670], [504, 740]], { h: [30, 58], tone: 0.05, spacing: 0.8, seed: 45, paper, under: 0.6 });
+    paintClump(ctx, [[24, 472], [78, 458], [132, 470]], { h: [22, 42], tone: 0.06, seed: 48, paper, under: 0.5 }); // hides the straight terrace edge
+    paintClump(ctx, [[120, 498], [176, 512], [236, 500]], { h: [24, 46], tone: 0.06, seed: 46, paper, under: 0.6 });
     paintMaple(ctx, { x: 372, y: 450, height: 62, width: 70, lean: 10, seed: 51, paper, leafSize: 2.6 });
     paintMaple(ctx, { x: 128, y: 410, height: 70, width: 60, lean: -10, seed: 52, paper, leafSize: 2.6 });
     paintMaple(ctx, { x: 532, y: 655, height: 66, width: 78, lean: 15, seed: 53, paper, leafSize: 2.6 });
@@ -130,6 +134,7 @@ export function buildLeft(api, { paper }) {
     paintClump(ctx, [[140, 640], [175, 660], [196, 700]], { h: [36, 60], tone: 0.03, seed: 63, paper });
     paintClump(ctx, [[236, 888], [296, 868], [352, 874], [396, 908]], { h: [50, 90], tone: 0.02, seed: 64, paper });
     paintClump(ctx, [[400, 964], [450, 948], [515, 964]], { h: [50, 90], tone: 0.04, seed: 65, paper });
+    paintClump(ctx, [[176, 770], [192, 850], [204, 930], [214, 1010]], { h: [34, 66], tone: 0.04, spacing: 0.8, seed: 70, paper, under: 0.6 });
     paintClump(ctx, [[0, 760], [10, 860], [30, 960]], { h: [30, 56], tone: 0.06, spacing: 0.9, seed: 68, paper, under: 0.6 });
     // dark pine mass low on the left (ref: big pines at the bottom-left corner)
     paintClump(ctx, [[-30, 1000], [40, 968], [110, 980], [180, 1010]], { h: [80, 140], tone: 0.05, spacing: 0.4, seed: 69, paper, under: 0.7 });
@@ -150,7 +155,7 @@ export function buildLeft(api, { paper }) {
       { pts: [[104, 172], [150, 162], [204, 168]], w: 8, subs: 2 },
       { pts: [[56, 296], [26, 276], [-6, 262]], w: 9, subs: 2 },
     ],
-    padSize: 88, needle: 12, padDensity: 2.6, haze: 0.1, swayAmp: 3, swayFreq: 0.2, barkTone: 0.4, paper,
+    padSize: 88, needle: 16, padDensity: 1.8, haze: 0.03, swayAmp: 3, swayFreq: 0.2, barkTone: 0.4, paper,
   });
   return { back, front, pine: pine.layer({ z: 1 }), falls };
 }
